@@ -5,6 +5,8 @@ import scipy.ndimage as ndimage
 from scipy.stats import t
 import scipy.optimize as optimize
 
+import cvxopt
+from cvxopt import solvers
 
 def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return_basis_and_eig=False):
     """
@@ -202,10 +204,20 @@ def loci_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
     h = np.append(np.append(sci_mean_sub, -sci_mean_sub), np.zeros(numpix))
     h = np.append(sci_mean_sub, -sci_mean_sub)
 
-    # solves for dummy parameters and loci coefficients
-    result = optimize.linprog(c, A_ub=G, b_ub=h, options={"disp" : True, "tol" : np.std(sci_mean_sub)*1e-8, "bland": True, "maxiter": 4000})
+    c_matrix = cvxopt.matrix(c)
+    G_matrix = cvxopt.matrix(G)
+    h_matrix = cvxopt.matrix(h)
 
-    loci_coeffs = result.x[:numref] # should be all the loci coeffs
+    result = solvers.lp(c_matrix, G_matrix, h_matrix)
+    loci_coeffs = np.array(result['x']).T[0,:numref]
+
+    # # solves for dummy parameters and loci coefficients
+    # result = optimize.linprog(c, A_ub=G, b_ub=h, options={"disp" : True, "tol" : np.std(sci_mean_sub)*1e-8, "bland": True, "maxiter": 4000})
+    #
+    # if result.status != 0:
+    #     return np.ones([sci_mean_sub.shape[0], 1]) * np.nan
+    #
+    # loci_coeffs = result.x[:numref] # should be all the loci coeffs
 
     ref_psf = np.sum(loci_coeffs[:, None] * ref_psfs_mean_sub, axis=0)
 
