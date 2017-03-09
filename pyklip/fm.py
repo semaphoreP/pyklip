@@ -24,7 +24,7 @@ except ImportError:
     mkl_exists = False
 
 
-parallel = True
+parallel = False
 
 
 def find_id_nearest(array,value):
@@ -1503,6 +1503,8 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     klip_math_return = klip_math(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis,
                                  covar_psfs=covar_files,)
     klipped, original_KL, evals, evecs = klip_math_return
+
+    klipped = klip.loci_l1(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis)
 
     # write standard klipped image to output if we are saving outputs
     if output_imgs is not None:

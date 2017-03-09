@@ -3,6 +3,7 @@ import numpy.fft as fft
 import scipy.linalg as la
 import scipy.ndimage as ndimage
 from scipy.stats import t
+import scipy.optimize as optimize
 
 
 def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return_basis_and_eig=False):
@@ -148,6 +149,70 @@ def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, retu
     # #pdb.set_trace()
     #
     # return sub_img
+
+
+def loci_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return_basis_and_eig=False):
+    """
+    Does the Math for LOCI with L1-normalization
+
+    Args:
+        sci: array of length p containing the science data
+        ref_psfs: N x p array of the N reference PSFs that
+                  characterizes the PSF of the p pixels
+        numbasis: number of KLIP basis vectors to use (can be an int or an array of ints of length b)
+        covar_psfs: covariance matrix of reference psfs passed in so you don't have to calculate it here
+        return_basis: If true, return KL basis vectors (used when onesegment==True)
+        return_basis_and_eig: If true, return KL basis vectors as well as the eigenvalues and eigenvectors of the
+                                covariance matrix. Used for KLIP Forward Modelling of Laurent Pueyo.
+
+    Returns:
+        sub_img_rows_selected: array of shape (p,b) that is the PSF subtracted data for each of the b KLIP basis
+                               cutoffs. If numbasis was an int, then sub_img_row_selected is just an array of length p
+        KL_basis: array of shape (max(numbasis),p). Only if return_basis or return_basis_and_eig is True.
+        evals: Eigenvalues of the covariance matrix. The covariance matrix is assumed NOT to be normalized by (p-1).
+                Only if return_basis_and_eig is True.
+        evecs: Eigenvectors of the covariance matrix. The covariance matrix is assumed NOT to be normalized by (p-1).
+                Only if return_basis_and_eig is True.
+    """
+    # for the science image, subtract the mean and mask bad pixels
+    sci_mean_sub = sci - np.nanmean(sci)
+
+    # clean science image of NaN
+    sci_nanpix = np.where(np.isnan(sci))
+    sci_mean_sub[sci_nanpix] = 0
+
+    # do the same for the reference PSFs
+    # playing some tricks to vectorize the subtraction
+    ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
+    ref_psfs_mean_sub[np.where(np.isnan(ref_psfs_mean_sub))] = 0
+
+    numpix = np.size(sci)
+    numref = ref_psfs.shape[0]
+    # weight function for the minimzation function
+    c = np.append(np.zeros(numref), np.ones(numpix))
+
+    # Matrix to stick the reference images for the inequality of linprog
+    G1 = np.append(ref_psfs_mean_sub.T, -np.identity(numpix, dtype=float), axis=1)
+    G2 = np.append(-ref_psfs_mean_sub.T, -np.identity(numpix, dtype=float), axis=1)
+    G3 = np.append(np.zeros(ref_psfs.T.shape), -np.identity(numpix, dtype=float), axis=1)
+    G = np.append(np.append(G1, G2, axis=0), G3, axis=0)
+    G = np.append(G1, G2, axis=0)
+
+    # matrix with the target image
+    h = np.append(np.append(sci_mean_sub, -sci_mean_sub), np.zeros(numpix))
+    h = np.append(sci_mean_sub, -sci_mean_sub)
+
+    # solves for dummy parameters and loci coefficients
+    result = optimize.linprog(c, A_ub=G, b_ub=h, options={"disp" : True, "tol" : np.std(sci_mean_sub)*1e-8, "bland": True, "maxiter": 4000})
+
+    loci_coeffs = result.x[:numref] # should be all the loci coeffs
+
+    ref_psf = np.sum(loci_coeffs[:, None] * ref_psfs_mean_sub, axis=0)
+
+    print(loci_coeffs.shape, loci_coeffs, np.mean(ref_psf))
+
+    sub_img = sci_mean_sub - ref_psf
+    return np.array([sub_img]).T
 
 
 def estimate_movement(radius, parang0=None, parangs=None, wavelength0=None, wavelengths=None, mode=None):
