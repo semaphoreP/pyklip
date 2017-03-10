@@ -208,7 +208,12 @@ def loci_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
     G_matrix = cvxopt.matrix(G)
     h_matrix = cvxopt.matrix(h)
 
+    solvers.options['reltol'] = 1e-4
+    solvers.options['refinement'] = 1
+
     result = solvers.lp(c_matrix, G_matrix, h_matrix)
+    if result['status'] != "optimal":
+        return np.ones([sci_mean_sub.shape[0], 1]) * np.nan
     loci_coeffs = np.array(result['x']).T[0,:numref]
 
     # # solves for dummy parameters and loci coefficients
