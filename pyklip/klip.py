@@ -250,6 +250,14 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
         sub_img_rows_selected: array of shape (p,b) that is the PSF subtracted data for each of the b KLIP basis
                                cutoffs. If numbasis was an int, then sub_img_row_selected is just an array of length p
     """
+    # maximum number of KL modes
+    tot_basis = covar_psfs.shape[0]
+    # only pick numbasis requested that are valid. We can't compute more KL basis than there are reference PSFs
+    # do numbasis - 1 for ease of indexing since index 0 is using 1 KL basis vector
+    numbasis = np.clip(numbasis - 1, 0, tot_basis-1)  # clip values, for output
+    max_basis = np.max(numbasis) + 1  # maximum number of eigenvectors/KL basis we actually need to use/calculate
+
+
     # for the science image, subtract the mean and mask bad pixels
     sci_mean_sub = sci - np.nanmean(sci)
 
@@ -267,10 +275,12 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
 
     # initialize variables for iteration solution to PCA
     projected_ref_psfs = ref_psfs_mean_sub.T # (numpix, numref)
-    V_matricies = [None for _ in range(numref+1)] # array to store all V_k matrices which have size m x k-1
-    V_matricies[numref] = np.identity(numref, dtype=float)
+    U_matricies = [None for _ in range(numref+1)] # array to store all U_k matrices which have size m x k-1
+    U_matricies[numref] = np.identity(numpix, dtype=float)
+    mod_I_matricies = [None for _ in range(numref+1)]
+    mod_I_matricies[numref] = np.identity(numref)
 
-    pca_modes = np.zeros([numref, numref])
+    pca_images = np.zeros([numref, numpix])
 
     for k in range(numref-1, 0, -1): #(k=m-1, k>0, k--)
         j_star, coeff_star = _l1_fit_subspace(projected_ref_psfs)
@@ -282,80 +292,55 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
         # moditify the kth row
         mod_I[k] = coeff_star/np.dot(coeff_star_cleaned.T, coeff_star_cleaned)
         mod_I[k, j_star] = 0
+        mod_I_matricies[k] = mod_I
 
-        Z_k = projected_ref_psfs * mod_I.T # n x m
+        Z_k = np.dot(projected_ref_psfs, mod_I.T) # n x m
         u, s, v = np.linalg.svd(Z_k)
 
         highest_vals = np.argsort(s)[::-1]
         # remove the last one
         highest_vals = highest_vals[:-1]
 
-        V_k = v[:, highest_vals]
-        V_matricies[k] = V_k
+        U_k = u[highest_vals, :]
+        U_matricies[k] = U_k
 
         # we need to multiply the V matricies together
-        V_prod = V_matricies[-1]
+        U_prod = U_matricies[-1]
+        U_I_prod = np.dot(U_matricies[-1].T, mod_I_matricies[-1])
         for l in range(numref-1, k, -1): # (l=m-1, l > k, l--):
-            V_prod = np.dot(V_prod, V_matricies[l])
-        pca_modes[k] = np.dot(V_prod, coeff_star_cleaned/np.dot(coeff_star_cleaned.T, coeff_star_cleaned))
+            U_prod = np.dot(U_matricies[l], U_prod)
+            U_I_prod = np.dot(U_I_prod, np.dot(U_matricies[l].T, mod_I_matricies[l]))
+        pca_images[k] = np.dot(np.dot(U_prod, U_I_prod), sci_mean_sub)
 
         # project reference PSFs to account for this PCA mode
-        projected_ref_psfs = np.dot(projected_ref_psfs, V_prod[k])
+        projected_ref_psfs = np.dot(projected_ref_psfs, U_prod[k])
 
     # do it for the 1st PCA mode
-    V_prod = V_matricies[-1]
+    U_prod = U_matricies[-1]
+    U_I_prod = np.dot(U_matricies[-1].T, mod_I_matricies[-1])
     for l in range(numref - 1, 0, -1):  # (l=m-1, l > 0, l--):
-        V_prod = np.dot(V_prod, V_matricies[l])
-    pca_modes[0] = V_prod
+        U_prod = np.dot(U_matricies[l], U_prod)
+        U_I_prod = np.dot(U_I_prod, np.dot(U_matricies[l].T, mod_I_matricies[l]))
+    pca_images[0] = np.dot(np.dot(U_prod, U_I_prod), sci_mean_sub)
 
 
     # duplicate science image by the max_basis to do simultaneous calculation for different k_KLIP
     sci_mean_sub_rows = np.tile(sci_mean_sub, (max_basis, 1))
     sci_rows_selected = np.tile(sci_mean_sub, (np.size(numbasis), 1)) # this is the output image which has less rows
 
-    # bad pixel mask
-    # do it first for the image we're just doing computations on but don't care about the output
-    sci_nanpix = np.where(np.isnan(sci_mean_sub_rows))
-    sci_mean_sub_rows[sci_nanpix] = 0
-    # now do it for the output image
-    sci_nanpix = np.where(np.isnan(sci_rows_selected))
-    sci_rows_selected[sci_nanpix] = 0
 
-    # do the KLIP equation, but now all the different k_KLIP simultaneously
-    # calculate the inner product of science image with each of the different kl_basis vectors
-    # TODO: can we optimize this so it doesn't have to multiply all the rows because in the next lines we only select some of them
-    inner_products = np.dot(sci_mean_sub_rows, np.require(kl_basis, requirements=['F']))
-    # select the KLIP modes we want for each level of KLIP by multiplying by lower diagonal matrix
-    lower_tri = np.tril(np.ones([max_basis, max_basis]))
-    inner_products = inner_products * lower_tri
-    # if there are NaNs due to negative eigenvalues, make sure they don't mess up the matrix multiplicatoin
-    # by setting the appropriate values to zero
-    if check_nans:
-        needs_to_be_zeroed = np.where(lower_tri == 0)
-        inner_products[needs_to_be_zeroed] = 0
-        # make a KLIP PSF for each amount of klip basis, but only for the amounts of klip basis we actually output
-        kl_basis[:, neg_evals] = 0
-        klip_psf = np.dot(inner_products[numbasis,:], kl_basis.T)
-        # for KLIP PSFs that use so many KL modes that they become nans, we have to put nan's back in those
-        badbasis = np.where(numbasis >= np.min(neg_evals)) #use basis with negative eignevalues
-        klip_psf[badbasis[0], :] = np.nan
-    else:
-        # make a KLIP PSF for each amount of klip basis, but only for the amounts of klip basis we actually output
-        klip_psf = np.dot(inner_products[numbasis,:], kl_basis.T)
+    for i, klcutoff in enumerate(numbasis):
+        sci_rows_selected[i] -= np.sum(pca_images[:klcutoff + 1], axis=1)
 
-    # make subtracted image for each number of klip basis
-    sub_img_rows_selected = sci_rows_selected - klip_psf
+    sub_img_rows_selected = sci_rows_selected
 
     # restore NaNs
     sub_img_rows_selected[sci_nanpix] = np.nan
 
-
-
     return sub_img_rows_selected.transpose()
 
 
-    sub_img = sci_mean_sub - ref_psf
-    return np.array([sub_img]).T
+
 
 
 def _l1_fit_subspace(data):

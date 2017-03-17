@@ -1504,7 +1504,8 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
                                  covar_psfs=covar_files,)
     klipped, original_KL, evals, evecs = klip_math_return
 
-    klipped = klip.loci_l1(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis)
+    klipped = klip.klip_l1(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis,
+                                 covar_psfs=covar_files,)
 
     # write standard klipped image to output if we are saving outputs
     if output_imgs is not None:
