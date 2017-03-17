@@ -8,6 +8,11 @@ import scipy.optimize as optimize
 import cvxopt
 from cvxopt import solvers
 
+from rpy2.robjects.packages import importr
+import rpy2.robjects as ro
+import rpy2.robjects.numpy2ri
+rpy2.robjects.numpy2ri.activate()
+
 def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return_basis_and_eig=False):
     """
     Helper function for KLIP that does the linear algebra
@@ -273,141 +278,44 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
     numpix = np.size(sci)
     numref = ref_psfs.shape[0]
 
-    # initialize variables for iteration solution to PCA
-    projected_ref_psfs = ref_psfs_mean_sub.T # (numpix, numref)
-    U_matricies = [None for _ in range(numref+1)] # array to store all U_k matrices which have size m x k-1
-    U_matricies[numref] = np.identity(numpix, dtype=float)
-    mod_I_matricies = [None for _ in range(numref+1)]
-    mod_I_matricies[numref] = np.identity(numref)
+    pcal1 = importr("pcaL1")
+    #r_output =pcal1.awl1pca(ref_psfs_mean_sub, projDim=max_basis, iterations=1000, tolerance=1e-4, gamma=0.01)
+    r_output =pcal1.pcal1(ref_psfs_mean_sub, projDim=max_basis)
 
-    pca_images = np.zeros([numref, numpix])
-
-    for k in range(numref-1, 0, -1): #(k=m-1, k>0, k--)
-        j_star, coeff_star = _l1_fit_subspace(projected_ref_psfs)
-        # remove -1 form coeffs
-        coeff_star_cleaned = np.append(coeff_star[:j_star], coeff_star[j_star+1:])
-
-        # construct the modified I matrix
-        mod_I = np.identity(k+1)
-        # moditify the kth row
-        mod_I[k] = coeff_star/np.dot(coeff_star_cleaned.T, coeff_star_cleaned)
-        mod_I[k, j_star] = 0
-        mod_I_matricies[k] = mod_I
-
-        Z_k = np.dot(projected_ref_psfs, mod_I.T) # n x m
-        u, s, v = np.linalg.svd(Z_k)
-
-        highest_vals = np.argsort(s)[::-1]
-        # remove the last one
-        highest_vals = highest_vals[:-1]
-
-        U_k = u[highest_vals, :]
-        U_matricies[k] = U_k
-
-        # we need to multiply the V matricies together
-        U_prod = U_matricies[-1]
-        U_I_prod = np.dot(U_matricies[-1].T, mod_I_matricies[-1])
-        for l in range(numref-1, k, -1): # (l=m-1, l > k, l--):
-            U_prod = np.dot(U_matricies[l], U_prod)
-            U_I_prod = np.dot(U_I_prod, np.dot(U_matricies[l].T, mod_I_matricies[l]))
-        pca_images[k] = np.dot(np.dot(U_prod, U_I_prod), sci_mean_sub)
-
-        # project reference PSFs to account for this PCA mode
-        projected_ref_psfs = np.dot(projected_ref_psfs, U_prod[k])
-
-    # do it for the 1st PCA mode
-    U_prod = U_matricies[-1]
-    U_I_prod = np.dot(U_matricies[-1].T, mod_I_matricies[-1])
-    for l in range(numref - 1, 0, -1):  # (l=m-1, l > 0, l--):
-        U_prod = np.dot(U_matricies[l], U_prod)
-        U_I_prod = np.dot(U_I_prod, np.dot(U_matricies[l].T, mod_I_matricies[l]))
-    pca_images[0] = np.dot(np.dot(U_prod, U_I_prod), sci_mean_sub)
+    kl_basis = np.array(r_output[0])
 
 
     # duplicate science image by the max_basis to do simultaneous calculation for different k_KLIP
     sci_mean_sub_rows = np.tile(sci_mean_sub, (max_basis, 1))
     sci_rows_selected = np.tile(sci_mean_sub, (np.size(numbasis), 1)) # this is the output image which has less rows
 
+    # bad pixel mask
+    # do it first for the image we're just doing computations on but don't care about the output
+    sci_nanpix = np.where(np.isnan(sci_mean_sub_rows))
+    sci_mean_sub_rows[sci_nanpix] = 0
+    # now do it for the output image
+    sci_nanpix = np.where(np.isnan(sci_rows_selected))
+    sci_rows_selected[sci_nanpix] = 0
 
-    for i, klcutoff in enumerate(numbasis):
-        sci_rows_selected[i] -= np.sum(pca_images[:klcutoff + 1], axis=1)
+    # do the KLIP equation, but now all the different k_KLIP simultaneously
+    # calculate the inner product of science image with each of the different kl_basis vectors
+    # TODO: can we optimize this so it doesn't have to multiply all the rows because in the next lines we only select some of them
+    inner_products = np.dot(sci_mean_sub_rows, np.require(kl_basis, requirements=['F']))
+    # select the KLIP modes we want for each level of KLIP by multiplying by lower diagonal matrix
+    lower_tri = np.tril(np.ones([max_basis, max_basis]))
+    inner_products = inner_products * lower_tri
+    # if there are NaNs due to negative eigenvalues, make sure they don't mess up the matrix multiplicatoin
+    # by setting the appropriate values to zero
 
-    sub_img_rows_selected = sci_rows_selected
+    klip_psf = np.dot(inner_products[numbasis, :], kl_basis.T)
+    # make subtracted image for each number of klip basis
+    sub_img_rows_selected = sci_rows_selected - klip_psf
 
     # restore NaNs
     sub_img_rows_selected[sci_nanpix] = np.nan
 
     return sub_img_rows_selected.transpose()
 
-
-
-
-
-def _l1_fit_subspace(data):
-    """
-    Helper function for L1 KLIP to solve for the best ft subspace of dimension m-1
-
-    Args:
-        data: array of shape (n,m) where n is number of pixels, and m is number of images
-
-    Returns:
-        j_star: index that specifies best fit subspace (integer)
-        coeff_star: optimal linear coefficients for the data (array of size m)
-
-    """
-
-    numpix = data.shape[0]
-    numref = data.shape[1]
-
-    j_star = 0
-    coeff_star = np.zeros(numref)
-    residuals_star = np.inf
-
-    for j in range(numref):
-        c = np.append(np.zeros(numref), np.ones(numpix))
-
-        # Matrix to stick the reference images for the inequality of linprog
-        G1 = np.append(data, -np.identity(numpix, dtype=float), axis=1)
-        G2 = np.append(-data, -np.identity(numpix, dtype=float), axis=1)
-        #G3 = np.append(np.zeros(ref_psfs.T.shape), -np.identity(numpix, dtype=float), axis=1)
-        #G = np.append(np.append(G1, G2, axis=0), G3, axis=0)
-        G = np.append(G1, G2, axis=0)
-
-        # matrix with the target image
-        #h = np.append(np.zeros(2*numpix), np.zeros(numpix))
-        h = np.zeros(2*numpix)
-
-        A = np.zeros([1,numref+numpix], dtype=float)
-        A[0, j] = 1
-        b = np.array([-1.])
-        print(A.shape, b.shape)
-
-        c_matrix = cvxopt.matrix(c)
-        G_matrix = cvxopt.matrix(G)
-        h_matrix = cvxopt.matrix(h)
-        A_matrix = cvxopt.matrix(A)
-        b_matrix = cvxopt.matrix(b)
-
-        solvers.options['reltol'] = 1e-4
-        solvers.options['refinement'] = 1
-
-        result = solvers.lp(c_matrix, G_matrix, h_matrix, A_matrix, b_matrix, "glpk")
-        if result['status'] != "optimal":
-            # couldn't converge
-            continue
-
-        coeffs = np.array(result['x']).T[0, :numref]
-        residuals = np.sum(np.array(result['x'])[numref:])
-
-        print(j, residuals, np.array(result['x']))
-
-        # check if this fit is better
-        if residuals < residuals_star:
-            j_star = j
-            coeff_star = coeffs
-            residuals_star = residuals
-
-    return j_star, coeff_star
 
 
 def estimate_movement(radius, parang0=None, parangs=None, wavelength0=None, wavelengths=None, mode=None):
