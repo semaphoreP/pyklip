@@ -264,7 +264,7 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
 
 
     # for the science image, subtract the mean and mask bad pixels
-    sci_mean_sub = sci - np.nanmean(sci)
+    sci_mean_sub = sci - np.nanmedian(sci)
 
     # clean science image of NaN
     sci_nanpix = np.where(np.isnan(sci))
@@ -272,15 +272,15 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
 
     # do the same for the reference PSFs
     # playing some tricks to vectorize the subtraction
-    ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
+    ref_psfs_mean_sub = ref_psfs - np.nanmedian(ref_psfs, axis=1)[:, None]
     ref_psfs_mean_sub[np.where(np.isnan(ref_psfs_mean_sub))] = 0
 
     numpix = np.size(sci)
     numref = ref_psfs.shape[0]
 
     pcal1 = importr("pcaL1")
-    #r_output =pcal1.awl1pca(ref_psfs_mean_sub, projDim=max_basis, iterations=1000, tolerance=1e-4, gamma=0.01)
-    r_output =pcal1.pcal1(ref_psfs_mean_sub, projDim=max_basis)
+    r_output = pcal1.awl1pca(ref_psfs_mean_sub, projDim=max_basis, iterations=1000, tolerance=1e-6, gamma=0.01, center=False)
+    #r_output =pcal1.pcal1(ref_psfs_mean_sub, projDim=max_basis)
 
     kl_basis = np.array(r_output[0])
 
@@ -297,19 +297,28 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
     sci_nanpix = np.where(np.isnan(sci_rows_selected))
     sci_rows_selected[sci_nanpix] = 0
 
-    # do the KLIP equation, but now all the different k_KLIP simultaneously
-    # calculate the inner product of science image with each of the different kl_basis vectors
-    # TODO: can we optimize this so it doesn't have to multiply all the rows because in the next lines we only select some of them
-    inner_products = np.dot(sci_mean_sub_rows, np.require(kl_basis, requirements=['F']))
-    # select the KLIP modes we want for each level of KLIP by multiplying by lower diagonal matrix
-    lower_tri = np.tril(np.ones([max_basis, max_basis]))
-    inner_products = inner_products * lower_tri
-    # if there are NaNs due to negative eigenvalues, make sure they don't mess up the matrix multiplicatoin
-    # by setting the appropriate values to zero
+    # L1 Norm Projection
+    klip_psf = np.zeros(sci_rows_selected.shape)
+    for k,klcutoff in enumerate(numbasis):
+        projection = pcal1.l1projection(np.array([sci_mean_sub]), kl_basis[:,:klcutoff+1])
+        reconstruction = np.array(projection[1])
+        #reconstruction = np.sum(np.array(projection[0]) * kl_basis[:,:klcutoff+1], axis=1)
 
-    klip_psf = np.dot(inner_products[numbasis, :], kl_basis.T)
+        klip_psf[k] = reconstruction
+
+    # # L2 Norm Projection
+    # inner_products = np.dot(sci_mean_sub_rows, np.require(kl_basis, requirements=['F']))
+    # # select the KLIP modes we want for each level of KLIP by multiplying by lower diagonal matrix
+    # lower_tri = np.tril(np.ones([max_basis, max_basis]))
+    # inner_products = inner_products * lower_tri
+    # # make a KLIP PSF for each amount of klip basis, but only for the amounts of klip basis we actually output
+    # klip_psf = np.dot(inner_products[numbasis,:], kl_basis.T)
+
+
     # make subtracted image for each number of klip basis
     sub_img_rows_selected = sci_rows_selected - klip_psf
+
+
 
     # restore NaNs
     sub_img_rows_selected[sci_nanpix] = np.nan
