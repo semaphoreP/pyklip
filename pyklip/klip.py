@@ -262,9 +262,12 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
     numbasis = np.clip(numbasis - 1, 0, tot_basis-1)  # clip values, for output
     max_basis = np.max(numbasis) + 1  # maximum number of eigenvectors/KL basis we actually need to use/calculate
 
+    # center each pixel about 0
+    median_offset = np.nanmedian(ref_psfs, axis=0)
 
     # for the science image, subtract the mean and mask bad pixels
-    sci_mean_sub = sci - np.nanmedian(sci)
+    #sci_mean_sub = sci - np.nanmedian(sci)
+    sci_mean_sub = sci - median_offset
 
     # clean science image of NaN
     sci_nanpix = np.where(np.isnan(sci))
@@ -272,7 +275,7 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
 
     # do the same for the reference PSFs
     # playing some tricks to vectorize the subtraction
-    ref_psfs_mean_sub = ref_psfs - np.nanmedian(ref_psfs, axis=1)[:, None]
+    ref_psfs_mean_sub = ref_psfs -median_offset[None, :]
     ref_psfs_mean_sub[np.where(np.isnan(ref_psfs_mean_sub))] = 0
 
     numpix = np.size(sci)
