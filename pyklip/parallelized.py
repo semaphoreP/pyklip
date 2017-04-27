@@ -300,7 +300,8 @@ def _klip_section_multifile(scidata_indicies, wavelength, wv_index, numbasis, ma
 
     #do the same for the reference PSFs
     #playing some tricks to vectorize the subtraction of the mean for each row
-    ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
+    mean_offset = np.nanmean(ref_psfs, axis=1)
+    ref_psfs_mean_sub = ref_psfs - mean_offset[:, None]
     ref_psfs_mean_sub[np.where(np.isnan(ref_psfs_mean_sub))] = 0
 
     #calculate the covariance matrix for the reference PSFs
@@ -317,7 +318,7 @@ def _klip_section_multifile(scidata_indicies, wavelength, wv_index, numbasis, ma
 
     for file_index,parang in zip(scidata_indicies, parangs[scidata_indicies]):
         try:
-            _klip_section_multifile_perfile(file_index, section_ind, ref_psfs_mean_sub, covar_psfs, corr_psfs,
+            _klip_section_multifile_perfile(file_index, section_ind, ref_psfs_mean_sub + mean_offset[:, None], covar_psfs, corr_psfs,
                                             parang, wavelength, wv_index, (radstart + radend) / 2.0, numbasis,
                                             maxnumbasis, minmove, minrot, maxrot, mode, psflib_good=psflib_good,
                                             psflib_corr=psflib_corr, spectrum=spectrum, lite=lite,dtype=dtype)
@@ -499,14 +500,13 @@ def _klip_section_multifile_perfile(img_num, section_ind, ref_psfs, covar,  corr
         ref_psfs_selected = np.append(ref_psfs_selected, rdi_psfs_selected, axis=0)
 
 
-
     output_imgs = _arraytonumpy(output, (output_shape[0], output_shape[1]*output_shape[2], output_shape[3]),dtype=dtype)
 
     # run KLIP
     try:
-        #klipped = klip.klip_math(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis, covar_psfs=covar_files)
-        klipped = klip.klip_l1(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis,
-                                 covar_psfs=covar_files)
+        # klipped = klip.klip_math(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis, covar_psfs=covar_files)
+
+        klipped = klip.klip_l1(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis, covar_psfs=covar_files)
     except (ValueError, RuntimeError, TypeError) as err:
         print("({0}): {1}".format(err.errno, err.strerror))
         return False
