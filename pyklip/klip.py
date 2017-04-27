@@ -13,6 +13,11 @@ import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
 rpy2.robjects.numpy2ri.activate()
 
+# supress R warnings becasue they are ridiculous
+import warnings
+from rpy2.rinterface import RRuntimeWarning
+warnings.filterwarnings("ignore", category=RRuntimeWarning)
+
 def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return_basis_and_eig=False):
     """
     Helper function for KLIP that does the linear algebra
@@ -320,8 +325,6 @@ def klip_l1(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, return
 
     # make subtracted image for each number of klip basis
     sub_img_rows_selected = sci_rows_selected - klip_psf
-
-
 
     # restore NaNs
     sub_img_rows_selected[sci_nanpix] = np.nan
