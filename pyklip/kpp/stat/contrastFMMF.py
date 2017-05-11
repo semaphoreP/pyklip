@@ -465,7 +465,16 @@ def gather_contrasts(base_dir,filename_filter_list,mute = False,epoch_suffix=Non
 
             epochDir_glob = glob(base_dir+object+os.path.sep+"autoreduced_kpop"+os.path.sep+"*_{0}_Spec".format(band)+epoch_suffix+os.path.sep)
 
-            for epochDir in epochDir_glob:
+            compactdate_list = [int(os.path.abspath(epochDir).split(os.path.sep)[-1].split("_")[0]) for epochDir in epochDir_glob]
+            N_cubes_list = [len(glob(epochDir.replace("autoreduced_kpop","autoreduced")+os.path.sep+"S*_spdc_distorcorr.fits")) for epochDir in epochDir_glob]
+            # Find the first valid epoch
+            if len(compactdate_list)==0:
+                continue
+            compactdate_list,N_cubes_list = zip(*sorted(zip(compactdate_list,N_cubes_list)))
+            epochDir = epochDir_glob[np.where(N_cubes_list>20)[0][0]]
+            # exit()
+            # for epochDir in epochDir_glob:
+            if 1:
                 inputDir = os.path.abspath(epochDir)
                 epoch_folder_splitted = inputDir.split(os.path.sep)[-1].split("_")
                 compact_date = epoch_folder_splitted[0]

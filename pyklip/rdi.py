@@ -150,14 +150,16 @@ class PSFLibrary(object):
 
         #TODO: We should probably save more information into the header here, but what exactly it'll be is TBD
         if format == "fits":
+            hdu = fits.PrimaryHDU(self.master_correlation)
             if os.path.isfile(filename):
             #If the file already exists give user warning.     
                 if clobber:
-                    hdu = fits.PrimaryHDU(self.master_correlation)
                     hdu.writeto(filename, clobber=clobber)
                 else: 
                     print("save_correlation: File already exists. Set clobber=True to overwrite")
-            
+            else:
+                hdu.writeto(filename)
+
         #But for now only fits
         else:
             print("Sorry, fits is the only filetype type currently supported for saving correlation matrices")

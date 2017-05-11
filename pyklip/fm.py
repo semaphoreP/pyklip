@@ -71,7 +71,6 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
     sci_mean_sub = sci - np.nanmean(sci)
     sci_nanpix = np.where(np.isnan(sci_mean_sub))
     sci_mean_sub[sci_nanpix] = 0
-
     refs_mean_sub = refs - np.nanmean(refs, axis=1)[:, None]
     refs_mean_sub[np.where(np.isnan(refs_mean_sub))] = 0
 
@@ -118,8 +117,8 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
         N_pix = np.size(sci_mean_sub)
         sci_rows_selected = np.reshape(sci_mean_sub, (1,N_pix))
 
-        sci_nanpix = np.where(np.isnan(sci_rows_selected))
-        sci_rows_selected[sci_nanpix] = 0
+        # sci_nanpix = np.where(np.isnan(sci_rows_selected))
+        # sci_rows_selected[sci_nanpix] = 0
 
         # run KLIP on this sector and subtract the stellar PSF
         inner_products = np.dot(sci_rows_selected, KL_basis.T)
@@ -132,10 +131,10 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
         sci_mean_sub_rows = np.tile(sci_mean_sub, (max_basis,1))
         sci_rows_selected = np.tile(sci_mean_sub, (np.size(numbasis),1))
 
-        sci_nanpix = np.where(np.isnan(sci_mean_sub_rows))
-        sci_mean_sub_rows[sci_nanpix] = 0
-        sci_nanpix = np.where(np.isnan(sci_rows_selected))
-        sci_rows_selected[sci_nanpix] = 0
+        # sci_nanpix = np.where(np.isnan(sci_mean_sub_rows))
+        # sci_mean_sub_rows[sci_nanpix] = 0
+        # sci_nanpix = np.where(np.isnan(sci_rows_selected))
+        # sci_rows_selected[sci_nanpix] = 0
 
         # run KLIP on this sector and subtract the stellar PSF
         inner_products = np.dot(sci_mean_sub_rows, KL_basis.T)
@@ -149,7 +148,7 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
 
 
     sub_img_rows_selected = sci_rows_selected - klip
-    sub_img_rows_selected[sci_nanpix] = np.nan
+    sub_img_rows_selected[:, sci_nanpix[0]] = np.nan
 
 
     if models_ref is not None:
@@ -389,7 +388,7 @@ def calculate_fm(delta_KL_nospec, original_KL, numbasis, sci, model_sci, inputfl
         numbasis_index = np.clip(numbasis - 1, 0, max_basis-1)
 
     # remove means and nans from science image
-    sci_mean_sub = sci - np.nanmean(sci)
+    sci_mean_sub = np.copy(sci - np.nanmean(sci))
     sci_nanpix = np.where(np.isnan(sci_mean_sub))
     sci_mean_sub[sci_nanpix] = 0
     sci_mean_sub_rows = np.tile(sci_mean_sub, (max_basis,1))
@@ -788,7 +787,8 @@ def _align_and_scale_subset(thread_index, aligned_center,numthreads = None,dtype
     return
 
 
-def _get_section_indicies(input_shape, img_center, radstart, radend, phistart, phiend, padding, parang,IOWA):
+def _get_section_indicies(input_shape, img_center, radstart, radend, phistart, phiend, padding, parang, IOWA,
+                          flatten=True, flipx=False):
     """
     Gets the pixels (via numpy.where) that correspond to this section
 
@@ -811,8 +811,11 @@ def _get_section_indicies(input_shape, img_center, radstart, radend, phistart, p
 
     # create a coordinate system.
     x, y = np.meshgrid(np.arange(input_shape[1] * 1.0), np.arange(input_shape[0] * 1.0))
-    x.shape = (x.shape[0] * x.shape[1]) # Flatten
-    y.shape = (y.shape[0] * y.shape[1])
+    if flatten:
+        x.shape = (x.shape[0] * x.shape[1]) # Flatten
+        y.shape = (y.shape[0] * y.shape[1])
+    if flipx:
+        x = img_center[0] - (x - img_center[0])        
     r = np.sqrt((x - img_center[0])**2 + (y - img_center[1])**2)
     phi = np.arctan2(y - img_center[1], x - img_center[0])
 
@@ -916,69 +919,60 @@ def _save_rotated_section(input_shape, sector, sector_ind, output_img, output_im
     if new_center is None:
         new_center = img_center
 
-    rp = np.sqrt((xp - new_center[0])**2 + (yp - new_center[1])**2)
-    phip = (np.arctan2(yp-new_center[1], xp-new_center[0]) + angle_rad) % (2 * np.pi)
+    rot_sector_pix = _get_section_indicies(input_shape, new_center, radstart, radend, phistart, phiend,
+                                           padding, 0, IOWA, flatten=False, flipx=flipx)
 
-    # grab sectors based on whether the phi coordinate wraps
-    # padded sector
-    # check to see if with padding, the phi coordinate wraps
-    if phiend_padded >=  phistart_padded:
-        # doesn't wrap
-        in_padded_sector = ((rp >= radstart_padded) & (rp < radend_padded) &
-                               (phip >= phistart_padded) & (phip < phiend_padded))
-    else:
-        # wraps
-        in_padded_sector = ((rp >= radstart_padded) & (rp < radend_padded) &
-                                            ((phip >= phistart_padded) | (phip < phiend_padded)))
-    rot_sector_pix = np.where(in_padded_sector)
 
-    # only padding
-    # check to see if without padding, the phi coordinate wraps
-    if phiend >=  phistart:
-        # no wrap
-        in_only_padding = np.where(((rp < radstart) | (rp >= radend) | (phip < phistart) | (phip >= phiend))
-                                   & in_padded_sector)
-    else:
-        # wrap
-        in_only_padding = np.where(((rp < radstart) | (rp >= radend) | ((phip < phistart) & (phip > phiend_padded))
-                                    | ((phip >= phiend) & (phip < phistart_padded))) & in_padded_sector)
-    rot_sector_pix_onlypadding = np.where(in_only_padding)
-
+    # do NaN detection by defining any pixel in the new coordiante system (xp, yp) as a nan
+    # if any one of the neighboring pixels in the original image is a nan
+    # e.g. (xp, yp) = (120.1, 200.1) is nan if either (120, 200), (121, 200), (120, 201), (121, 201)
+    # is a nan
+    dims = input_shape
     blank_input = np.zeros(dims[1] * dims[0])
     blank_input[sector_ind] = sector
     blank_input.shape = [dims[0], dims[1]]
 
-    # resample image based on new coordinates
-    # scipy uses y,x convention when meshgrid uses x,y
-    # stupid scipy functions can't work with masked arrays (NANs)
-    # and trying to use interp2d with sparse arrays is way to slow
-    # hack my way out of this by picking a really small value for NANs and try to detect them after the interpolation
-    # then redo the transformation setting NaN to zero to reduce interpolation effects, but using the mask we derived
-    minval = np.min([np.nanmin(blank_input), 0.0])
+    xp_floor = np.clip(np.floor(xp).astype(int), 0, xp.shape[1]-1)[rot_sector_pix]
+    xp_ceil = np.clip(np.ceil(xp).astype(int), 0, xp.shape[1]-1)[rot_sector_pix]
+    yp_floor = np.clip(np.floor(yp).astype(int), 0, yp.shape[0]-1)[rot_sector_pix]
+    yp_ceil = np.clip(np.ceil(yp).astype(int), 0, yp.shape[0]-1)[rot_sector_pix]
+    rotnans = np.where(np.isnan(blank_input[yp_floor.ravel(), xp_floor.ravel()]) | 
+                       np.isnan(blank_input[yp_floor.ravel(), xp_ceil.ravel()]) |
+                       np.isnan(blank_input[yp_ceil.ravel(), xp_floor.ravel()]) |
+                       np.isnan(blank_input[yp_ceil.ravel(), xp_ceil.ravel()]))
+
+    # resample image based on new coordinates, set nan values as median
     nanpix = np.where(np.isnan(blank_input))
     medval = np.median(blank_input[np.where(~np.isnan(blank_input))])
     input_copy = np.copy(blank_input)
-    input_copy[nanpix] = minval * 5.0
-    rot_sector_mask = ndimage.map_coordinates(input_copy, [yp[rot_sector_pix], xp[rot_sector_pix]], cval=minval * 5.0)
     input_copy[nanpix] = medval
     rot_sector = ndimage.map_coordinates(input_copy, [yp[rot_sector_pix], xp[rot_sector_pix]], cval=np.nan)
-    rot_sector[np.where(rot_sector_mask < minval)] = np.nan
+
+    # mask nans
+    rot_sector[rotnans] = np.nan
+    sector_validpix = np.where(~np.isnan(rot_sector))
+
+    # need to define only where the non nan pixels are, so we can store those in the output image
+    blank_output = np.zeros([dims[0], dims[1]]) * np.nan
+    blank_output[rot_sector_pix] = rot_sector
+    blank_output.shape = (dims[0], dims[1])
+    rot_sector_validpix_2d = np.where(~np.isnan(blank_output))
 
     # save output sector. We need to reshape the array into 2d arrays to save it
     output_img.shape = [outputs_shape[1], outputs_shape[2]]
-    output_img[rot_sector_pix] = np.nansum([output_img[rot_sector_pix], rot_sector], axis=0)
+    output_img[rot_sector_validpix_2d] = np.nansum([output_img[rot_sector_pix][sector_validpix], rot_sector[sector_validpix]], axis=0)
     output_img.shape = [outputs_shape[1] * outputs_shape[2]]
 
     # Increment the numstack counter if it is not None
     if output_img_numstacked is not None:
         output_img_numstacked.shape = [outputs_shape[1], outputs_shape[2]]
-        output_img_numstacked[rot_sector_pix] += 1
+        output_img_numstacked[rot_sector_validpix_2d] += 1
         output_img_numstacked.shape = [outputs_shape[1] *  outputs_shape[2]]
 
 
 def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, OWA=None, mode='ADI+SDI', annuli=5, subsections=4,
                       movement=None, flux_overlap=0.1,PSF_FWHM=3.5, numbasis=None,maxnumbasis=None, aligned_center=None, numthreads=None, minrot=0, maxrot=360,
-                      spectrum=None, padding=3, save_klipped=True,
+                      spectrum=None, padding=3, save_klipped=True, flipx=True,
                       N_pix_sector = None,mute_progression = False):
     """
     multithreaded KLIP PSF Subtraction
@@ -1029,6 +1023,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, OWA=None, mode
                     if smaller than 10%, (hard coded quantity), then use it for reference PSF
         padding: for each sector, how many extra pixels of padding should we have around the sides.
         save_klipped: if True, will save the regular klipped image. If false, it wil not and sub_imgs will return None
+        flipx: if True, flips x axis after rotation to get North up East left
         mute_progression: Mute the printing of the progression percentage. Indeed sometimes the overwriting feature
                         doesn't work and one ends up with thousands of printed lines. Therefore muting it can be a good
                         idea.
@@ -1111,7 +1106,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, OWA=None, mode
             phi_bounds = [[dphi * phi_i, dphi * (phi_i + 1)] for phi_i in range(subsections)]
             phi_bounds[-1][1] = 2 * np.pi - 0.0001
         else:
-            phi_bounds = [[(-(pa - np.pi/2)) % (2*np.pi) for pa in pa_tuple[::-1]] for pa_tuple in subsections]
+            sign = -1
+            if not flipx:
+                sign = 1
+            phi_bounds = [[((sign*pa + np.pi/2)) % (2*np.pi) for pa in pa_tuple[::sign]] for pa_tuple in subsections]
 
         iterator_sectors = itertools.product(rad_bounds, phi_bounds)
         tot_sectors = len(rad_bounds)*len(phi_bounds)
@@ -1253,7 +1251,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, OWA=None, mode
                                                           parang, wv_value, wv_index, (radstart + radend) / 2., padding,(IWA,OWA),
                                                           numbasis,maxnumbasis,
                                                           movement,flux_overlap,PSF_FWHM, aligned_center, minrot, maxrot, mode, spectrum,
-                                                          fm_class))
+                                                          flipx, fm_class))
                                     for file_index,parang in zip(scidata_indicies, pa_imgs_np[scidata_indicies])]
 
             # # SINGLE THREAD DEBUG PURPOSES ONLY
@@ -1262,7 +1260,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, OWA=None, mode
                                                                   parang, wv_value, wv_index, (radstart + radend) / 2., padding,(IWA,OWA),
                                                                   numbasis,maxnumbasis,
                                                                   movement,flux_overlap,PSF_FWHM, aligned_center, minrot, maxrot, mode, spectrum,
-                                                                  fm_class)
+                                                                  flipx, fm_class)
                                     for file_index,parang in zip(scidata_indicies, pa_imgs_np[scidata_indicies])]
 
         # Run post processing on this sector here
@@ -1317,7 +1315,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, OWA=None, mode
         sub_imgs = np.rollaxis(sub_imgs.reshape((dims[0], dims[1], dims[2], numbasis.shape[0])), 3)
 
         #restore bad pixels
-        sub_imgs[:, allnans[0], allnans[1], allnans[2]] = np.nan
+        # sub_imgs[:, allnans[0], allnans[1], allnans[2]] = np.nan
     else:
         sub_imgs = None
 
@@ -1340,7 +1338,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, OWA=None, mode
 def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phistart, phiend, parang, wavelength,
                                     wv_index, avg_rad, padding,IOWA,
                                     numbasis,maxnumbasis, minmove,flux_overlap,PSF_FWHM, ref_center, minrot, maxrot,
-                                    mode, spectrum,
+                                    mode, spectrum, flipx,
                                     fm_class):
     """
     Imitates the rest of _klip_section for the multifile code. Does the rest of the PSF reference selection
@@ -1377,6 +1375,7 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
                     the size of the PSF (TODO: make PSF size another quanitity)
                     (e.g. minmove=3, checks how much containmination is within 3 pixels of the hypothetical source)
                     if smaller than 10%, (hard coded quantity), then use it for reference PSF
+        flipx: if True, flips x axis after rotation to get North up East left
 
     Return:
         sector_index: used for tracking jobs
@@ -1400,11 +1399,11 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     aligned_imgs = _arraytonumpy(aligned, (aligned_shape[0], aligned_shape[1], aligned_shape[2] * aligned_shape[3]),dtype=fm_class.np_data_type)[wv_index]
     ref_psfs = aligned_imgs[:,  section_ind[0]]
 
-
     #do the same for the reference PSFs
     #playing some tricks to vectorize the subtraction of the mean for each row
     ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
-    ref_psfs_mean_sub[np.where(np.isnan(ref_psfs_mean_sub))] = 0
+    ref_nanpix = np.where(np.isnan(ref_psfs_mean_sub))
+    ref_psfs_mean_sub[ref_nanpix] = 0
 
     #calculate the covariance matrix for the reference PSFs
     #note that numpy.cov normalizes by p-1 to get the NxN covariance matrix
@@ -1412,7 +1411,12 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     #vectors since that's not part of the equation in the KLIP paper
     covar_psfs = np.cov(ref_psfs_mean_sub)
     #also calculate correlation matrix since we'll use that to select reference PSFs
-    covar_diag = np.diagflat(1./np.sqrt(np.diag(covar_psfs)))
+    covar_diag_sqrt = np.sqrt(np.diag(covar_psfs))
+    covar_diag_sqrt_inverse = 1./covar_diag_sqrt
+    # any image where the diagonal is 0 is all NaNs and shouldn't be infinity
+    covar_diag_sqrt_inverse[np.where(covar_diag_sqrt == 0)] = 0
+    covar_diag = np.diagflat(covar_diag_sqrt_inverse)
+    
     corr_psfs = np.dot( np.dot(covar_diag, covar_psfs ), covar_diag)
 
 
@@ -1487,6 +1491,8 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     numpix = np.shape(section_ind)[1]
     numref = np.shape(ref_psfs_indicies)[0]
 
+    # restore NaNs
+    ref_psfs_mean_sub[ref_nanpix] = np.nan
 
     aligned_imgs = _arraytonumpy(aligned, (aligned_shape[0], aligned_shape[1], aligned_shape[2] * aligned_shape[3]),dtype=fm_class.np_data_type)[wv_index]
 
@@ -1498,7 +1504,6 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     fmout_np = _arraytonumpy(fmout, fmout_shape,dtype=fm_class.np_data_type)
     # convert to numpy array if pertrubmag is defined
     perturbmag_np = _arraytonumpy(perturbmag, perturbmag_shape,dtype=fm_class.np_data_type)
-
     # run regular KLIP and get the klipped img along with KL modes and eigenvalues/vectors of covariance matrix
     klip_math_return = klip_math(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis,
                                  covar_psfs=covar_files,)
@@ -1514,11 +1519,11 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
                 # only increment the numstack counter for the first KL mode
                 _save_rotated_section([original_shape[1], original_shape[2]], klipped[:, thisnumbasisindex], section_ind,
                                  output_imgs[img_num,:,thisnumbasisindex], output_imgs_numstacked[img_num], parang,
-                                 radstart, radend, phistart, phiend, padding,IOWA, ref_center, flipx=True)
+                                 radstart, radend, phistart, phiend, padding,IOWA, ref_center, flipx=flipx)
             else:
                 _save_rotated_section([original_shape[1], original_shape[2]], klipped[:, thisnumbasisindex], section_ind,
                                  output_imgs[img_num,:,thisnumbasisindex], None, parang,
-                                 radstart, radend, phistart, phiend, padding,IOWA, ref_center, flipx=True)
+                                 radstart, radend, phistart, phiend, padding,IOWA, ref_center, flipx=flipx)
 
 
     # call FM Class to handle forward modelling if it wants to. Basiclaly we are passing in everything as a variable
@@ -1530,7 +1535,7 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
                           pas=pa_imgs[ref_psfs_indicies], wvs=wvs_imgs[ref_psfs_indicies], radstart=radstart,
                           radend=radend, phistart=phistart, phiend=phiend, padding=padding,IOWA = IOWA, ref_center=ref_center,
                           parang=parang, ref_wv=wavelength, numbasis=numbasis,maxnumbasis=maxnumbasis,
-                           fmout=fmout_np,perturbmag = perturbmag_np,klipped=klipped, covar_files=covar_files)
+                           fmout=fmout_np,perturbmag = perturbmag_np,klipped=klipped, covar_files=covar_files, flipx=flipx)
 
     return sector_index
 
@@ -1665,6 +1670,7 @@ def klip_dataset(dataset, fm_class, mode="ADI+SDI", outputdir=".", fileprefix="p
                                      flux_overlap=flux_overlap, PSF_FWHM=PSF_FWHM, numbasis=numbasis,
                                      maxnumbasis=maxnumbasis, aligned_center=aligned_center, numthreads=numthreads,
                                      minrot=minrot, spectrum=spectra_template, padding=padding, save_klipped=True,
+                                     flipx=dataset.flipx,
                                      N_pix_sector=N_pix_sector, mute_progression=mute_progression)
 
     klipped, fmout, perturbmag = klip_outputs # images are already rotated North up East left

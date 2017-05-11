@@ -18,7 +18,7 @@ class FMPlanetPSF(NoFM):
     """
     Forward models the PSF of the planet through KLIP. Returns the forward modelled planet PSF
     """
-    def __init__(self, inputs_shape, numbasis, sep, pa, dflux, input_psfs, input_wvs, flux_conversion, spectrallib=None, star_spt=None, refine_fit=False):
+    def __init__(self, inputs_shape, numbasis, sep, pa, dflux, input_psfs, input_wvs, flux_conversion=None, spectrallib=None, star_spt=None, refine_fit=False):
         """
         Defining the planet to characterizae
 
@@ -30,11 +30,12 @@ class FMPlanetPSF(NoFM):
             dflux: guess for delta flux of planet averaged across band w.r.t star
             input_psfs: the psf of the image. A numpy array with shape (wv, y, x)
             input_wvs: the wavelegnths that correspond to the input psfs
-            flux_conversion: an array of length N to convert from contrast to DN for each frame. Units of DN/contrast
-            wavelengths: wavelengths of data. Can just be a string like 'H' for H-band
-            spectrallib: if not None, a list of spectra
+                (doesn't need to be tiled to match the dimension of the input data of the instrument class)
+            flux_conversion: an array of length N to convert from contrast to DN for each frame. Units of DN/contrast. 
+                             If None, assumes dflux is the ratio between the planet flux and tthe input_psfs flux
+            spectrallib: if not None, a list of spectra based on input_wvs
             star_spt: star spectral type, if None default to some random one
-            refine_fit: refine the separation and pa supplied
+            refine_fit: (NOT implemented) refine the separation and pa supplied
         """
         # allocate super class
         super(FMPlanetPSF, self).__init__(inputs_shape, numbasis)
@@ -64,6 +65,9 @@ class FMPlanetPSF(NoFM):
 
         self.input_psfs = input_psfs
         self.input_psfs_wvs = input_wvs
+
+        if flux_conversion is None:
+            flux_conversion = np.ones(inputs_shape[0])
         self.flux_conversion = flux_conversion
 
         self.psf_centx_notscaled = {}
@@ -140,7 +144,7 @@ class FMPlanetPSF(NoFM):
         return perturbmag, perturbmag_shape
 
 
-    def generate_models(self, input_img_shape, section_ind, pas, wvs, radstart, radend, phistart, phiend, padding, ref_center, parang, ref_wv):
+    def generate_models(self, input_img_shape, section_ind, pas, wvs, radstart, radend, phistart, phiend, padding, ref_center, parang, ref_wv, flipx):
         """
         Generate model PSFs at the correct location of this segment for each image denoated by its wv and parallactic angle
 
@@ -155,6 +159,7 @@ class FMPlanetPSF(NoFM):
             ref_center: center of image
             parang: parallactic angle of input image [DEGREES]
             ref_wv: wavelength of science image
+            flipx: if True, flip x coordinate in final image
 
         Return:
             models: array of size (N, p) where p is the number of pixels in the segment
@@ -188,8 +193,12 @@ class FMPlanetPSF(NoFM):
             # find center of psf
             # to reduce calculation of sin and cos, see if it has already been calculated before
             if pa not in self.psf_centx_notscaled:
-                self.psf_centx_notscaled[pa] = self.sep * np.cos(np.radians(90. - self.pa - pa))
-                self.psf_centy_notscaled[pa] = self.sep * np.sin(np.radians(90. - self.pa - pa))
+                # flipx requires the opposite rotation
+                sign = -1.
+                if flipx:
+                    sign = 1.
+                self.psf_centx_notscaled[pa] = self.sep * np.cos(np.radians(90. - sign*self.pa - pa))
+                self.psf_centy_notscaled[pa] = self.sep * np.sin(np.radians(90. - sign*self.pa - pa))
             psf_centx = (ref_wv/wv) * self.psf_centx_notscaled[pa]
             psf_centy = (ref_wv/wv) * self.psf_centy_notscaled[pa]
 
@@ -227,7 +236,7 @@ class FMPlanetPSF(NoFM):
 
     def fm_from_eigen(self, klmodes=None, evals=None, evecs=None, input_img_shape=None, input_img_num=None, ref_psfs_indicies=None, section_ind=None,section_ind_nopadding=None, aligned_imgs=None, pas=None,
                      wvs=None, radstart=None, radend=None, phistart=None, phiend=None, padding=None,IOWA = None, ref_center=None,
-                     parang=None, ref_wv=None, numbasis=None, fmout=None, perturbmag=None, klipped=None, covar_files=None, **kwargs):
+                     parang=None, ref_wv=None, numbasis=None, fmout=None, perturbmag=None, klipped=None, covar_files=None, flipx=True, **kwargs):
         """
         Generate forward models using the KL modes, eigenvectors, and eigenvectors from KLIP. Calls fm.py functions to
         perform the forward modelling
@@ -266,11 +275,11 @@ class FMPlanetPSF(NoFM):
 
 
         # generate models for the PSF of the science image
-        model_sci = self.generate_models(input_img_shape, section_ind, [parang], [ref_wv], radstart, radend, phistart, phiend, padding, ref_center, parang, ref_wv)[0]
+        model_sci = self.generate_models(input_img_shape, section_ind, [parang], [ref_wv], radstart, radend, phistart, phiend, padding, ref_center, parang, ref_wv, flipx)[0]
         model_sci *= self.flux_conversion[input_img_num] * self.spectrallib[0][np.where(self.input_psfs_wvs == ref_wv)] * self.dflux
 
         # generate models of the PSF for each reference segments. Output is of shape (N, pix_in_segment)
-        models_ref = self.generate_models(input_img_shape, section_ind, pas, wvs, radstart, radend, phistart, phiend, padding, ref_center, parang, ref_wv)
+        models_ref = self.generate_models(input_img_shape, section_ind, pas, wvs, radstart, radend, phistart, phiend, padding, ref_center, parang, ref_wv, flipx)
 
         # Calculate the spectra to determine the flux of each model reference PSF
         total_imgs = np.size(self.flux_conversion)
@@ -296,12 +305,16 @@ class FMPlanetPSF(NoFM):
 
         fmout_shape = fmout.shape
 
+        # nan the same pixels as the klipped image
+        klipped_nans = np.where(np.isnan(klipped))
+        postklip_psf[:, klipped_nans[0]] = np.nan
+
         # write forward modelled PSF to fmout (as output)
         # need to derotate the image in this step
         for thisnumbasisindex in range(np.size(numbasis)):
                 fm._save_rotated_section(input_img_shape, postklip_psf[thisnumbasisindex], section_ind,
                                  fmout[input_img_num, :, :,thisnumbasisindex], None, parang,
-                                 radstart, radend, phistart, phiend, padding,IOWA, ref_center, flipx=True)
+                                 radstart, radend, phistart, phiend, padding,IOWA, ref_center, flipx=flipx)
 
 
 

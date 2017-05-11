@@ -260,8 +260,8 @@ def test_meas_contrast():
 
     closer_contrast = contrast[0]
     for c in contrast[1:]:
-        # assert is less than previous closer in contrast, or at least within 10%
-        assert(closer_contrast - c > -(0.1*closer_contrast))
+        # assert is less than previous closer in contrast, or at least within 20%
+        assert(closer_contrast - c > -(0.2*closer_contrast))
         closer_contrast = c
 
     # also test other data inputs for low_pass_filter in measure contrast

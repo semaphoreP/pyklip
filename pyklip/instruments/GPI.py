@@ -222,6 +222,7 @@ class GPIData(Data):
     ###############
     ### Methods ###
     ###############
+
     def readdata(self, filepaths, skipslices=None, highpass=False, meas_satspot_flux=False,numthreads = -1,
                  PSF_cube=None, recalc_wvs=True, recalc_centers=True, bad_sat_spots=None, quiet=False):
         """
@@ -381,7 +382,7 @@ class GPIData(Data):
         """
         Save data in a GPI-like fashion. Aka, data and header are in the first extension header
 
-        Inputs:
+        Args:
             filepath: path to file to output
             data: 2D or 3D data to save
             klipparams: a string of klip parameters

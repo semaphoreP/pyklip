@@ -41,7 +41,7 @@ Installing photutils
 
 Instructions for installing photutils can be found here:
 http://photutils.readthedocs.io/en/latest/photutils/install.html. Note
-that the conda instructions are outdated - use
+that the conda instructions may not work - in that case, you can try
 ``conda install -c https://conda.anaconda.org/astropy photutils``
 
 Steps

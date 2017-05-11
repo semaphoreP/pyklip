@@ -35,7 +35,9 @@ To install the most up to date developer version, clone this repository if you h
 
     $ git clone git@bitbucket.org:pyKLIP/pyklip.git
 
-Then ``cd`` into it and run the setup file::
+This clones the repoistory using SSH authentication. If you get an authentication error, you will want to follow `this guide <https://confluence.atlassian.com/bitbucket/set-up-ssh-for-git-728138079.html>`_ to setup SSH authentication, or `clone using the HTTPS option instead <https://confluence.atlassian.com/bitbucket/clone-a-repository-223217891.html>`_, which just requires a password.
+
+Once the repository is cloned onto your computer, ``cd`` into it and run the setup file::
 
     $ python setup.py develop
 

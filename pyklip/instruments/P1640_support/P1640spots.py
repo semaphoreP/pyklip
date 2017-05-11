@@ -471,9 +471,6 @@ def write_spots_to_file(data_filepath, spot_positions, output_dir=None,
 # Complete spot extraction
 ##################################################
 
-def get_initial_spot_guesses2(cube, rotated_spots=False):
-    pass
-
 def get_initial_spot_guesses(cube, rotated_spots=False):
     """
     """

@@ -39,7 +39,7 @@ else:
     import filedialog
 
 import tkFont
-    
+
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 
 from astropy.io import fits
@@ -79,9 +79,12 @@ class CubeChecker:
         self.spot_mode = spot_mode
         self.spot_path = spot_path
         self.fitsfiles = sorted([os.path.abspath(i) for i in fitsfiles])
-        self.seeing = [fits.getval(ff,'SEEING') for ff in self.fitsfiles]
-        self.airmass = [fits.getval(ff,'INIT_AM') for ff in self.fitsfiles]
-        
+        try:
+            self.seeing = [fits.getval(ff,'SEEING') for ff in self.fitsfiles]
+            self.airmass = [fits.getval(ff,'INIT_AM') for ff in self.fitsfiles]
+        except KeyError:
+            self.seeing = np.ones(len(self.fitsfiles))*10
+            self.airmass = np.ones(len(self.fitsfiles))*10
         self.quit_button = Tk.Button(frame, text="Quit", font=self.customFont, fg='black', underline=0,
                                      command=frame.quit)
 
@@ -338,14 +341,26 @@ class CubeChecker:
         
     def update_cube_stats(self):
         header = fits.getheader(self.fitsfiles[self.current_file_index])
-        exptime = header['EXP_TIME']
-        airmass = np.mean([header['INIT_AM'], header['FINL_AM']])
-        seeing = header['SEEING']
+        try:
+            exptime = header['EXP_TIME']
+            airmass = np.mean([header['INIT_AM'], header['FINL_AM']])
+            seeing = header['SEEING']
+        except KeyError:
+            exptime = np.nan
+            airmass = np.nan
+            seeing = np.nan
         maxval = np.nanmax(self.current_cube)
         minval = np.nanmin(self.current_cube)
+        """
         self.curr_exptime.set("Exposure time: {0:.3f}".format(self.current_header['EXP_TIME']))
         self.curr_seeing.set("Seeing: {0:>9.3f}".format(self.current_header['SEEING']))
         self.curr_airmass.set("Airmass: {0:>8.3f}".format(self.current_header['INIT_AM']))
+        self.curr_maxval.set("Max val: {0:>8.1f}".format(np.nanmax(self.current_cube)))
+        self.curr_minval.set("Min val: {0:>8.1f}".format(np.nanmin(self.current_cube)))
+        """
+        self.curr_exptime.set("Exposure time: {0:.3f}".format(exptime))
+        self.curr_seeing.set("Seeing: {0:>9.3f}".format(seeing))
+        self.curr_airmass.set("Airmass: {0:>8.3f}".format(airmass))
         self.curr_maxval.set("Max val: {0:>8.1f}".format(np.nanmax(self.current_cube)))
         self.curr_minval.set("Min val: {0:>8.1f}".format(np.nanmin(self.current_cube)))
 

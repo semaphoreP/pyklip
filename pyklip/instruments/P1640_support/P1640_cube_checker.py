@@ -32,7 +32,9 @@ from astropy import units
 import argparse
 import ConfigParser
 
-sys.path.append(".")
+# needed to import from outside this folder
+base_dir = os.path.dirname(__file__) or '.'
+sys.path.append(base_dir)
 import P1640spots
 
 dnah_spot_directory = '/data/p1640/data/users/spot_positions/jonathan/'

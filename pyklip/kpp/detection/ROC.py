@@ -385,7 +385,16 @@ def gather_multiple_ROCs(base_dir,filename_filter_list,mute = False,epoch_suffix
 
             epochDir_glob = glob(base_dir+star_name+os.path.sep+"autoreduced_kpop"+os.path.sep+"*_*_Spec"+epoch_suffix+os.path.sep)
 
-            for epochDir in epochDir_glob:
+            compactdate_list = [int(os.path.abspath(epochDir).split(os.path.sep)[-1].split("_")[0]) for epochDir in epochDir_glob]
+            N_cubes_list = [len(glob(epochDir.replace("autoreduced_kpop","autoreduced")+os.path.sep+"S*_spdc_distorcorr.fits")) for epochDir in epochDir_glob]
+            # Find the first valid epoch
+            if len(compactdate_list)==0:
+                continue
+            compactdate_list,N_cubes_list = zip(*sorted(zip(compactdate_list,N_cubes_list)))
+            epochDir = epochDir_glob[np.where(N_cubes_list>20)[0][0]]
+            # exit()
+            # for epochDir in epochDir_glob:
+            if 1:
                 inputDir = os.path.abspath(epochDir)
                 epoch_folder_splitted = inputDir.split(os.path.sep)[-1].split("_")
                 compact_date = epoch_folder_splitted[0]
@@ -476,7 +485,16 @@ def get_all_false_pos(base_dir,filename_filter_list,threshold,mute = False,epoch
 
             epochDir_glob = glob(base_dir+star_name+os.path.sep+"autoreduced_kpop"+os.path.sep+"*_{0}_Spec".format(IFSfilter)+epoch_suffix+os.path.sep)
 
-            for epochDir in epochDir_glob:
+            compactdate_list = [int(os.path.abspath(epochDir).split(os.path.sep)[-1].split("_")[0]) for epochDir in epochDir_glob]
+            N_cubes_list = [len(glob(epochDir.replace("autoreduced_kpop","autoreduced")+os.path.sep+"S*_spdc_distorcorr.fits")) for epochDir in epochDir_glob]
+            # Find the first valid epoch
+            if len(compactdate_list)==0:
+                continue
+            compactdate_list,N_cubes_list = zip(*sorted(zip(compactdate_list,N_cubes_list)))
+            epochDir = epochDir_glob[np.where(N_cubes_list>20)[0][0]]
+            # exit()
+            # for epochDir in epochDir_glob:
+            if 1:
                 inputDir = os.path.abspath(epochDir)
 
                 file_list = []
@@ -570,7 +588,16 @@ def get_metrics_stat(base_dir,filename_filter_list,IOWA,bins,GOI_list_folder,mut
 
             epochDir_glob = glob(base_dir+star_name+os.path.sep+"autoreduced_kpop"+os.path.sep+"*_{0}_Spec".format(IFSfilter)+epoch_suffix+os.path.sep)
 
-            for epochDir in epochDir_glob:
+            compactdate_list = [int(os.path.abspath(epochDir).split(os.path.sep)[-1].split("_")[0]) for epochDir in epochDir_glob]
+            N_cubes_list = [len(glob(epochDir.replace("autoreduced_kpop","autoreduced")+os.path.sep+"S*_spdc_distorcorr.fits")) for epochDir in epochDir_glob]
+            # Find the first valid epoch
+            if len(compactdate_list)==0:
+                continue
+            compactdate_list,N_cubes_list = zip(*sorted(zip(compactdate_list,N_cubes_list)))
+            epochDir = epochDir_glob[np.where(N_cubes_list>20)[0][0]]
+            # exit()
+            # for epochDir in epochDir_glob:
+            if 1:
                 inputDir = os.path.abspath(epochDir)
 
                 file_list = []

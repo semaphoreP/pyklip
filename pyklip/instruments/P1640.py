@@ -83,7 +83,8 @@ class P1640Data(Data):
     spot_ratio = {} #w.r.t. central star
     lenslet_scale = 1.0 # arcseconds per pixel (pixel scale)
     ifs_rotation = 0.0  # degrees CCW from +x axis to zenith
-
+    nchannels_all = []
+    nchannels_used = []
     observatory_latitude = 0.0
 
     ## read in P1640 configuration file and set these static variables
@@ -103,6 +104,7 @@ class P1640Data(Data):
             fpm_diam[band] = float(config.get("instrument", "fpm_diam")) / lenslet_scale  # pixels
         flux_zeropt = float(config.get("instrument", "zero_pt_flux"))
         observatory_latitude = float(config.get("observatory", "observatory_lat"))
+        nchannels_all = int(config.get("instrument", "cube_channels"))
     except ConfigParser.Error as e:
         print("Error reading P1640 configuration file: {0}".format(e.message))
         raise e
@@ -127,8 +129,14 @@ class P1640Data(Data):
         self.spot_directory = spot_directory
         self.spot_flux = None # Currently not implemented, may be in future
         self.scale_factors = None # scaling between wavelength slices
+        self.spot_positions = None # Ncube x Nchan x 4 x 2 spot positions [row, col]
         #self.spot_scaling = None # scaling factor between wavelengths
 
+        self.channels_all = list(range(P1640Data.nchannels_all))
+        try:
+            self.channels_used = [i for i in self.channels_all if i not in skipslices]
+        except:
+            self.channels_used = self.channels_all[:]
         if filepaths is None:
             # general stuff
             self._input = None
@@ -148,6 +156,7 @@ class P1640Data(Data):
             self.flux_units = None # Currently not implemented, may be in future
         else:
             self.readdata(filepaths, skipslices=skipslices, highpass=highpass, numthreads=numthreads, PSF_cube=PSF_cube)
+
 
     ################################
     ### Instance Required Fields ###
@@ -231,6 +240,13 @@ class P1640Data(Data):
         self._scale_factors = newval
 
     @property
+    def spot_positions(self):
+        return self._spot_positions
+    @spot_positions.setter
+    def spot_positions(self, newval):
+        self._spot_positions = newval
+
+    @property
     def spot_directory(self):
         return self._spot_directory
     @spot_directory.setter
@@ -239,7 +255,7 @@ class P1640Data(Data):
         #    newval = P1640Data.config("spots","spot_file_path")
         self._spot_directory = newval
         print("Spot file directory set to {0}".format(self.spot_directory))
-        
+
     ###############
     ### Methods ###
     ###############
@@ -259,7 +275,7 @@ class P1640Data(Data):
         scale_factors = []
         centers = []
         spot_photometry = []
-            
+
         for filepath in filepaths:
             hdulist = fits.open(filepath)
             cube = hdulist[0].data
@@ -286,7 +302,7 @@ class P1640Data(Data):
                 spot_locations = P1640spots.get_single_cube_spot_positions(cube)
                 # write them to disk so they don't have to be recalculated
                 write_p1640_spots_to_file(P1640Data.config, filepath, spot_locations)
-                
+
             cube_spot_fluxes = P1640spots.get_single_cube_spot_photometry(cube, spot_locations)
             cube_scale, cube_center = P1640spots.get_scaling_and_centering_from_spots(spot_locations)
 
@@ -300,7 +316,7 @@ class P1640Data(Data):
         #self.centers = centers
         #self.spot_flux = cube_spot_fluxes
 
-            
+
     def readdata(self, filepaths, skipslices=None, corefilepaths=None, highpass=True, numthreads=-1, PSF_cube=None):
         """
         Method to open and read a list of P1640 data. Handles everything that can be done by
@@ -329,6 +345,7 @@ class P1640Data(Data):
         wvs = []
         centers = []
         spot_scalings = []
+        spot_locations = []
         wcs_hdrs = []
         spot_fluxes = []
         prihdrs = []
@@ -336,12 +353,14 @@ class P1640Data(Data):
 
         #extract data from each file
         for index, filepath in enumerate(filepaths):
-            cube, center, spot_scaling_single_cube, pa, wv, astr_hdrs, filt_band, fpm_band, ppm_band, spot_flux, prihdr, exthdr = \
-                _p1640_process_file(filepath, spot_directory=self.spot_directory, skipslices=skipslices, highpass=highpass, numthreads=numthreads)#, psf_func_list=psf_func_list )
+            cube, center, spot_scaling_single_cube, spot_locations_single_cube, pa, wv, \
+            astr_hdrs, filt_band, fpm_band, ppm_band, spot_flux, prihdr, exthdr = \
+                _p1640_process_file(filepath, spot_directory=self.spot_directory, skipslices=skipslices, highpass=highpass, numthreads=numthreads)
 
             data.append(cube)
             centers.append(center)
             spot_scalings.append(spot_scaling_single_cube)
+            spot_locations.append(spot_locations_single_cube)
             spot_fluxes.append(spot_flux)
             rot_angles.append(pa)
             wvs.append(wv)
@@ -367,7 +386,7 @@ class P1640Data(Data):
         centers = np.array(centers).reshape([dims[0] * dims[1], 2])
         spot_fluxes = np.array(spot_fluxes).reshape([dims[0] * dims[1]])
         spot_scalings = np.array(spot_scalings)#.reshape([dims[0]*dims[1]])
-
+        spot_locations = np.array(spot_locations).reshape([dims[0]*dims[1], 4, 2])[..., ::-1]
         # Not used by P1640
         '''
         #only do the wavelength solution and center recalculation if it isn't broadband imaging
@@ -399,6 +418,7 @@ class P1640Data(Data):
         self._IWA = P1640Data.fpm_diam[fpm_band]/2.0
         self.spot_flux = spot_fluxes
         self.scale_factors = spot_scalings
+        self.spot_locations = spot_locations
         self.contrast_scaling = None #P1640Data.spot_ratio[ppm_band]/np.mean(spot_fluxes)
         self.flux_units = "DN"
         self.prihdrs = prihdrs
@@ -571,45 +591,38 @@ class P1640Data(Data):
             star_psf = P1640cores.make_median_core(core_cubes)
             for hdu in core_hdus:
                 hdu.close
-            
+
             self.contrast_scaling = star_flux = np.nansum(axis=0)
-            
-            
+
+
             self.output *= self.contrast_scaling
             self.flux_units = "contrast"
             self._corefilenames = core_files
             self._core_psf = star_psf
-            
-        
+
 
     def generate_psfs(self, boxrad=7):
         """
         Generates PSF for each frame of input data. Only works on spectral mode data.
         Currently hard coded assuming 37 spectral channels!!!
-
         Args:
             boxrad: the halflength of the size of the extracted PSF (in pixels)
-
+            spotyx: Ncube x Nchan x 4 x 2 array of spot (row, col) positions
         Returns:
             saves PSFs to self.psfs as an array of size(N,psfy,psfx) where psfy=psfx=2*boxrad + 1
         """
         self.psfs = []
 
-        for i,frame in enumerate(self.input):
-            #figure out which header and which wavelength slice
-            numwaves = np.size(np.unique(self.wvs))
-            hdrindex = int(i)/int(numwaves)
-            slice = i % numwaves
-            #now grab the values from them by parsing the header
-            hdr = self.exthdrs[hdrindex]
-            spot0 = hdr['SATS{wave}_0'.format(wave=slice)].split()
-            spot1 = hdr['SATS{wave}_1'.format(wave=slice)].split()
-            spot2 = hdr['SATS{wave}_2'.format(wave=slice)].split()
-            spot3 = hdr['SATS{wave}_3'.format(wave=slice)].split()
+        # spots initially have shape (Ncube x Nchan x Nspots x 2)
+        nframes = reduce(lambda x,y: x*y, self.spot_locations.shape[:-2])
+        spot0 = self.spot_locations[..., 0,:].reshape(nframes, 2)
+        spot1 = self.spot_locations[..., 1,:].reshape(nframes, 2)
+        spot2 = self.spot_locations[..., 2,:].reshape(nframes, 2)
+        spot3 = self.spot_locations[..., 3,:].reshape(nframes, 2)
 
-            #put all the sat spot info together
-            spots = [[float(spot0[0]), float(spot0[1])],[float(spot1[0]), float(spot1[1])],
-                     [float(spot2[0]), float(spot2[1])],[float(spot3[0]), float(spot3[1])]]
+        for i,frame in enumerate(self.input):
+            spots = [[float(spot0[i, 0]), float(spot0[i, 1])], [float(spot1[i, 0]), float(spot1[i, 1])],
+                     [float(spot2[i, 0]), float(spot2[i, 1])], [float(spot3[i, 0]), float(spot3[i, 1])]]
             #now make a psf
             spotpsf = generate_psf(frame, spots, boxrad=boxrad)
             self.psfs.append(spotpsf)
@@ -632,34 +645,30 @@ class P1640Data(Data):
                 of the background by a plane which is then subtracted to remove linear biases.
 
         Returns:
-            A cube of shape 37*boxw*boxw. Each slice [k,:,:] is the PSF for a given wavelength.
+            A cube of shape Nchan*boxw*boxw. Each slice [k,:,:] is the PSF for a given wavelength.
         """
 
         n_frames,ny,nx = self.input.shape
         x_grid, y_grid = np.meshgrid(np.arange(ny), np.arange(nx))
         unique_wvs = np.unique(self.wvs)
-        numwaves = np.size(np.unique(self.wvs))
+        numwaves = np.size(self.channels_used)  # np.unique(self.wvs))
 
         psfs = np.zeros((numwaves,boxw,boxw,n_frames,4))
 
+        # spots initially have shape (Ncube x Nchan x Nspots x 2)
+        nframes = reduce(lambda x,y: x*y, self.spot_locations.shape[:-2])
+        spot0 = self.spot_locations[..., 0,:].reshape(nframes, 2)
+        spot1 = self.spot_locations[..., 1,:].reshape(nframes, 2)
+        spot2 = self.spot_locations[..., 2,:].reshape(nframes, 2)
+        spot3 = self.spot_locations[..., 3,:].reshape(nframes, 2)
 
-        for lambda_ref_id, lambda_ref in enumerate(unique_wvs):
+        scale_factors = self.scale_factors.ravel()
+        for lambda_ref_id, lambda_ref in enumerate(self.channels_used):
             for i,frame in enumerate(self.input):
                 #figure out which header and which wavelength slice
-                hdrindex = int(i)/int(numwaves)
-                slice = i % numwaves
-                lambda_curr = unique_wvs[slice]
-                #now grab the values from them by parsing the header
-                hdr = self.exthdrs[hdrindex]
-                spot0 = hdr['SATS{wave}_0'.format(wave=slice)].split()
-                spot1 = hdr['SATS{wave}_1'.format(wave=slice)].split()
-                spot2 = hdr['SATS{wave}_2'.format(wave=slice)].split()
-                spot3 = hdr['SATS{wave}_3'.format(wave=slice)].split()
-
                 #put all the sat spot info together
-                spots = [[float(spot0[0]), float(spot0[1])],[float(spot1[0]), float(spot1[1])],
-                         [float(spot2[0]), float(spot2[1])],[float(spot3[0]), float(spot3[1])]]
-
+                spots = [[float(spot0[i, 0]), float(spot0[i, 1])], [float(spot1[i, 0]), float(spot1[i, 1])],
+                         [float(spot2[i, 0]), float(spot2[i, 1])], [float(spot3[i, 0]), float(spot3[i, 1])]]
                 #mask nans
                 cleaned = np.copy(frame)
                 cleaned[np.where(np.isnan(cleaned))] = 0
@@ -683,7 +692,6 @@ class P1640Data(Data):
                     #stamp_x -= spotx-xarr_spot
                     #stamp_y -= spoty-yarr_spot
                     #print(spotx-xarr_spot,spoty-yarr_spot)
-
 
 
                     #mask the central blob to calculate background median
@@ -713,7 +721,7 @@ class P1640Data(Data):
                     if 1:
                         stamp_r = np.sqrt((stamp_x-dx-boxw/2)**2+(stamp_y-dy-boxw/2)**2)
                         stamp_th = np.arctan2(stamp_x-dx-boxw/2,stamp_y-dy-boxw/2)
-                        stamp_r /= lambda_ref/lambda_curr
+                        stamp_r /= scale_factors[i]  # lambda_ref/lambda_curr
                         stamp_x = stamp_r*np.cos(stamp_th)+boxw/2
                         stamp_y = stamp_r*np.sin(stamp_th)+boxw/2
                         #print(stamp_x,stamp_y)
@@ -729,14 +737,12 @@ class P1640Data(Data):
         #Build the spectrum of the sat spots
         # Number of cubes in dataset
         N_cubes = int(self.input.shape[0])/int(numwaves)
-        all_sat_spot_spec = np.zeros((37,N_cubes))
+        N_chans = np.size(self.channels_all)
+        all_sat_spot_spec = np.zeros((N_chans, N_cubes))
         for k in range(N_cubes):
-            all_sat_spot_spec[:,k] = self.spot_flux[37*k:37*(k+1)]
+            all_sat_spot_spec[:,k] = self.spot_flux[N_chans*k: N_chans*(k+1)]
         sat_spot_spec = np.nanmean(all_sat_spot_spec,axis=1)
 
-        #stamp_x, stamp_y = np.meshgrid(np.arange(boxw, dtype=np.float32), np.arange(boxw, dtype=np.float32))
-        #stamp_r = np.sqrt((stamp_x-boxw/2)**2+(stamp_y-boxw/2)**2)
-        #stamp_center = np.where(stamp_r<3)
         PSF_cube /= np.sqrt(np.nansum(PSF_cube**2))
         for l in range(numwaves):
             #PSF_cube[l,:,:] -= np.nanmedian(PSF_cube[l,:,:][stamp_center])
@@ -905,6 +911,7 @@ def _p1640_process_file(filepath, spot_directory=None, skipslices=None, highpass
         fpm_band: which coronagrpah was used (string) NOT USED
         ppm_band: which apodizer was used (string) NOT USED
         spot_fluxes: array of z containing average satellite spot fluxes for each image NOT USED
+        spot_positions: array of (row, col) spot positions for each slice
         prihdr: primary header of the FITS file NOT USED
         exthdr: 1st extention header of the FITS file
     """
@@ -943,6 +950,7 @@ def _p1640_process_file(filepath, spot_directory=None, skipslices=None, highpass
         # calculate centers from satellite spots
         # first, check if spot positions have been stored on disk
         # build the path
+        spot_locations = []
         try:
             if spot_directory is not None:
                 spot_filedir = spot_directory
@@ -953,7 +961,7 @@ def _p1640_process_file(filepath, spot_directory=None, skipslices=None, highpass
             spot_filebasename = os.path.splitext(os.path.basename(filepath))[0]
             spot_fullpath = os.path.join(spot_filedir, spot_filebasename)
             spot_filepaths = glob.glob(spot_fullpath+'*')
-            
+
             # check if all the spot files exist, if so, read them in
             exist = np.all([os.path.isfile(f) for f in spot_filepaths])
             assert(exist is not False)
@@ -968,7 +976,7 @@ def _p1640_process_file(filepath, spot_directory=None, skipslices=None, highpass
         spot_fluxes = P1640spots.get_single_cube_spot_photometry(cube, spot_locations)
         scale_factors, center = P1640spots.get_scaling_and_centering_from_spots(spot_locations,
                                                                                 mean_scaling=False)
-        
+
         #parang = np.repeat(exthdr['AVPARANG'], channels) #populate PA for each wavelength slice (the same)
         parang = np.repeat(0, channels) #populate PA for each wavelength slice (the same)
         astr_hdrs = [w.deepcopy() for i in range(channels)] #repeat astrom header for each wavelength slice
@@ -986,7 +994,7 @@ def _p1640_process_file(filepath, spot_directory=None, skipslices=None, highpass
         wvs = np.delete(wvs, skipslices)
         astr_hdrs = np.delete(astr_hdrs, skipslices)
         spot_fluxes = np.delete(spot_fluxes, skipslices)
-
+        spot_locations = np.delete(spot_locations, skipslices)
     highpassed = False
     if isinstance(highpass, bool):
         if highpass:
@@ -998,12 +1006,11 @@ def _p1640_process_file(filepath, spot_directory=None, skipslices=None, highpass
             fourier_sigma_size = (cube.shape[1]/(highpass)) / (2*np.sqrt(2*np.log(2)))
             cube = high_pass_filter_imgs(cube, filtersize=fourier_sigma_size)
             highpassed = True
-    
-    
+
     # pyklip centers need to be [x,y] instead of (row, col)
     #print(center.shape)
     center = np.fliplr(center) # [0] because of the way P1640spots works
-    return cube, center, scale_factors, parang, wvs, astr_hdrs, filt_band, fpm_band, ppm_band, spot_fluxes, prihdr, exthdr
+    return cube, center, scale_factors, spot_locations, parang, wvs, astr_hdrs, filt_band, fpm_band, ppm_band, spot_fluxes, prihdr, exthdr
 
 
 def generate_psf(frame, locations, boxrad=5, medianboxsize=30):
@@ -1023,12 +1030,11 @@ def generate_psf(frame, locations, boxrad=5, medianboxsize=30):
     #mask nans
     cleaned = np.copy(frame)
     cleaned[np.where(np.isnan(cleaned))] = 0
-
     #mask source for median filter
     masked = np.copy(cleaned)
     for loc in locations:
-        spotx = np.round(loc[0])
-        spoty = np.round(loc[1])
+        spotx = np.int(np.round(loc[0]))
+        spoty = np.int(np.round(loc[1]))
         masked[spotx-boxrad:spotx+boxrad+1, spoty-boxrad:spoty+boxrad+1] = scipy.stats.nanmedian(
             masked.reshape(masked.shape[0]*masked.shape[1]))
     #subtract out median filtered image
@@ -1048,8 +1054,7 @@ def generate_psf(frame, locations, boxrad=5, medianboxsize=30):
         genpsf.append(spotpsf)
 
     genpsf = np.array(genpsf)
-    genpsf = np.mean(genpsf, axis=0) #average the different psfs together    
-
+    genpsf = np.mean(genpsf, axis=0) #average the different psfs together
     return genpsf
 
 

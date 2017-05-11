@@ -83,7 +83,7 @@ First, let us initalize :py:class:`pyklip.fmlib.fmpsf.FMPlanetPSF` to forward mo
     # initialize the FM Planet PSF class
     import pyklip.fmlib.fmpsf as fmpsf
     fm_class = fmpsf.FMPlanetPSF(dataset.input.shape, numbasis, guesssep, guesspa, guessflux, dataset.psfs,
-                                 np.unique(dataset.wvs), dn_per_contrast, star_spt='A6', wavelengths='J',
+                                 np.unique(dataset.wvs), dn_per_contrast, star_spt='A6',
                                  spectrallib=[guessspec])
 
 .. note::
@@ -108,7 +108,7 @@ a width of 30 pixels. The width just needs to be big enough that you see the ent
     movement = 4 # we are using an conservative exclusion criteria of 4 pixels
 
     # run KLIP-FM
-    import pykip.fm as fm
+    import pyklip.fm as fm
     fm.klip_dataset(dataset, fm_class, outputdir=outputdir, fileprefix=prefix, numbasis=numbasis,
                     annuli=annulus_bounds, subsections=subsections, padding=padding, movement=movement)
 
