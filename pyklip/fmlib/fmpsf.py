@@ -342,7 +342,7 @@ class FMPlanetPSF(NoFM):
         return fmout
 
     def save_fmout(self, dataset, fmout, outputdir, fileprefix, numbasis, klipparams=None, calibrate_flux=False,
-                   spectrum=None):
+                   spectrum=None, noise_weights=None):
         """
         Saves the FM planet PSFs to disk. Saves both a KL mode cube and spectral cubes
 
@@ -355,14 +355,19 @@ class FMPlanetPSF(NoFM):
             klipparams: string with KLIP-FM parameters
             calibrate_flux: if True, flux calibrate the data in the same way as the klipped data
             spectrum: if not None, spectrum to weight the data by. Length same as dataset.wvs
+            weights: if not None, weights for each pixel based on the noies in the images
         """
+        # to make the math work
+        if noise_weights is None:
+            noise_weights = 1
+
         # collapse in time and wavelength to examine KL modes
         if spectrum is None:
-            KLmode_cube = np.nanmean(fmout, axis=1)
+            KLmode_cube = np.nanmean(noise_weights * fmout, axis=1)/np.nanmean(noise_weights, axis=1)
         else:
             #do the mean combine by weighting by the spectrum
-            KLmode_cube = np.nanmean(fmout * spectrum[None,:,None,None], axis=1)\
-                          / np.mean(spectrum)
+            KLmode_cube = np.nanmean(noise_weights * fmout * spectrum[None,:,None,None], axis=1)\
+                          / np.nanmean(noise_weights * spectrum[None, :, None, None], axis=1)
 
         # save FM location into header
         more_keywords = {'fm_sep': self.sep, 'fm_pa': self.pa}
@@ -379,9 +384,11 @@ class FMPlanetPSF(NoFM):
             numwvs = np.size(np.unique(dataset.wvs))
             klipped_spec = fmout.reshape([fmout.shape[0], fmout.shape[1]//numwvs, numwvs,
                                             fmout.shape[2], fmout.shape[3]]) # (b, N_cube, wvs, y, x) 5-D cube
+            noise_weights_spec = noise_weights.reshape([fmout.shape[0], fmout.shape[1]//numwvs, numwvs,
+                                                        fmout.shape[2], fmout.shape[3]])
 
             # for each KL mode, collapse in time to examine spectra
-            KLmode_spectral_cubes = np.nanmean(klipped_spec, axis=1)
+            KLmode_spectral_cubes = np.nanmean(noise_weights_spec * klipped_spec, axis=1)/np.nanmean(noise_weights_spec, axis=1)
             for KLcutoff, spectral_cube in zip(numbasis, KLmode_spectral_cubes):
                 # calibrate spectral cube if needed
                 if calibrate_flux:
