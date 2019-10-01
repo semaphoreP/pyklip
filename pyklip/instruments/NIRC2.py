@@ -5,12 +5,17 @@ import subprocess
 import astropy.io.fits as fits
 from astropy import wcs
 from astropy.modeling import models, fitting
+from astropy import time as astrotime
+from astropy.coordinates import Angle
 import numpy as np
 import scipy.ndimage as ndimage
 import scipy.stats
 from scipy.interpolate import interp1d
 import time
 from copy import copy
+from scipy.integrate import romberg
+from astropy.coordinates import SkyCoord, FK5
+from astropy import units as u
 
 import multiprocessing as mp
 
@@ -75,6 +80,7 @@ class NIRC2Data(Data):
     #ifs_rotation = 0.0  # degrees CCW from +x axis to zenith
 
     observatory_latitude = None
+    observatory_longitude = None
 
     ## read in GPI configuration file and set these static variables
     package_directory = os.path.dirname(os.path.abspath(__file__))
@@ -107,6 +113,7 @@ class NIRC2Data(Data):
             pupil_diam[pupil] = float(config.get("instrument", "pupil_diam_{0}".format(pupil))) # meters
         
         observatory_latitude = float(config.get("observatory", "observatory_lat"))
+        observatory_longitude = float(config.get("observatory", "observatory_lon"))
     except ConfigParser.Error as e:
         print("Error reading GPI configuration file: {0}".format(e.message))
         raise e
@@ -658,7 +665,7 @@ def measure_star_flux(img, star_x, star_y):
 
     return flux
 
-def get_pa(hdulist, obsdate=None, rotmode=None, mean_PA=True, write_hdr=True):
+def get_pa(hdulist, obsdate=None, rotmode=None, mean_PA=True, write_hdr=True, new_method=True):
     """
     Given a FITS data-header unit list (HDUList), returns the NIRC2 PA in [radians].
     PA is angle of detector relative to sky; ROTMODE is rotator tracking mode;
@@ -719,55 +726,156 @@ def get_pa(hdulist, obsdate=None, rotmode=None, mean_PA=True, write_hdr=True):
         raise NotImplementedError
     
     if mean_PA and (rotmode.lower() == 'vertical angle'):
-        # Get info for PA smearing calculation.
-        epochobj = prihdr['DATE-OBS']
-        name = prihdr['targname']
-        expref = prihdr['itime']
-        coaddref = prihdr['coadds']
-        sampref =  prihdr['sampmode']
-        msrref =   prihdr['MULTISAM']
-        xdimref =  prihdr['naxis1']
-        ydimref =  prihdr['naxis2']
-        tel = prihdr['TELESCOP']
-        dec = prihdr['DEC'] + prihdr['DECOFF']
-        if tel.lower() == 'keck ii':
-            tel = 'keck2' # just cleaning up str
-        
-        # Calculate total time of exposure (integration + readout).
-        if sampref == 2: totexp = ( expref + 0.18*(xdimref/1024.)**2) * coaddref
-        if sampref == 3: totexp = ( expref + (msrref-1)*0.18*(xdimref/1024.)**2)*coaddref
-        
-        tinteg = totexp # [seconds]
-        totexp = totexp/3600. # [hours]
-        
-        # Get hour angle at start of exposure.
-        tmpahinit = prihdr['HA'] # [deg]
-        ahobs = 24.*tmpahinit/360. # [hours]
-        
-        # Estimate vertical position angle at each second of the exposure.
-        vp = [] #fltarr(round(3600.*totexp))
-        for j in range(0, int(round(3600.*totexp))-1):
-            ahtmp = ahobs + (j*1.+0.001)/3600. # [hours]
-            vp.append(par_angle(ahtmp, dec, NIRC2Data.observatory_latitude))
-            if j == 0: vpref = vp[0]
-        vp = np.array(vp)
-        
-        # Handle case where PA crosses 0 <--> 360.
-        vp[vp < 0.] += 360.
-        vp[vp > 360.] -= 360.
-        if vpref < 0.: vpref += 360.
-        if vpref > 360.: vpref -= 360.
-        
-        # Check that images near PA=0 are handled correctly.
-        if any(vp > 350) & any(vp < 10):
-            vp[vp > 350] -= 360
-        
-        vpmean = np.nanmean(vp)
-        
-        if (vpmean < 0) & (vpref > 350):
-            vpmean += 360.
-        
-        pa_deg_mean = pa_deg + (vpmean - vpref)
+        if new_method is False:
+            # Get info for PA smearing calculation.
+            epochobj = prihdr['DATE-OBS']
+            name = prihdr['targname']
+            expref = prihdr['itime']
+            coaddref = prihdr['coadds']
+            sampref =  prihdr['sampmode']
+            msrref =   prihdr['MULTISAM']
+            xdimref =  prihdr['naxis1']
+            ydimref =  prihdr['naxis2']
+            tel = prihdr['TELESCOP']
+            dec = prihdr['DEC'] + prihdr['DECOFF']
+            if tel.lower() == 'keck ii':
+                tel = 'keck2' # just cleaning up str
+            
+            # Calculate total time of exposure (integration + readout).
+            if sampref == 2: totexp = ( expref + 0.18*(xdimref/1024.)**2) * coaddref
+            if sampref == 3: totexp = ( expref + (msrref-1)*0.18*(xdimref/1024.)**2)*coaddref
+            
+            tinteg = totexp # [seconds]
+            totexp = totexp/3600. # [hours]
+            
+            # Get hour angle at start of exposure.
+            tmpahinit = prihdr['HA'] # [deg]
+            ahobs = 24.*tmpahinit/360. # [hours]
+            
+            # Estimate vertical position angle at each second of the exposure.
+            vp = [] #fltarr(round(3600.*totexp))
+            for j in range(0, int(round(3600.*totexp*100.))-1):
+                ahtmp = ahobs + (j*1.+0.001)/(3600.*100.) # [hours]
+                vp.append(par_angle(ahtmp, dec, NIRC2Data.observatory_latitude))
+                if j == 0: vpref = vp[0]
+            vp = np.array(vp)
+            
+            # Handle case where PA crosses 0 <--> 360.
+            vp[vp < 0.] += 360.
+            vp[vp > 360.] -= 360.
+            if vpref < 0.: vpref += 360.
+            if vpref > 360.: vpref -= 360.
+            
+            # Check that images near PA=0 are handled correctly.
+            if any(vp > 350) & any(vp < 10):
+                vp[vp > 350] -= 360
+            
+            vpmean = np.nanmean(vp)
+            
+            if (vpmean < 0) & (vpref > 350):
+                vpmean += 360.
+            
+            pa_deg_mean = pa_deg + (vpmean - vpref)
+        else:
+
+            expref = prihdr['itime']
+            coaddref = prihdr['coadds']
+            sampref =  prihdr['sampmode']
+            msrref =   prihdr['MULTISAM']
+            xdimref =  prihdr['naxis1']
+            ydimref =  prihdr['naxis2']
+            tel = prihdr['TELESCOP']
+            dec = prihdr['DEC'] + prihdr['DECOFF']
+            if tel.lower() == 'keck ii':
+                tel = 'keck2' # just cleaning up str
+            
+            # Calculate total time of exposure (integration + readout).
+            if sampref == 2: totexp = ( expref + 0.18*(xdimref/1024.)**2) * coaddref
+            if sampref == 3: totexp = ( expref + (msrref-1)*0.18*(xdimref/1024.)**2)*coaddref
+            tinteg = totexp # [seconds]
+
+            ## date-obs saved when command issued, need to check if UT > 12 and EXPSTART < 12 (if so, add one to date)
+            expstart = prihdr['EXPSTART']
+            expend = prihdr['EXPSTOP']
+
+            ut = Angle(prihdr['UTC']+' h').hour
+            expstart_hr = Angle(expstart+' h').hour
+            expend_hr = Angle(expend+' h').hour
+
+            if (ut > 23) & (expstart_hr < 1):
+                # Crossed the date line between UT and EXPSTART
+                date_start = (astrotime.Time(prihdr['DATE-OBS']+'T12:00:00', format='isot', scale='ut1') + astrotime.TimeDelta(1.0, format='jd')).isot[0:10]
+            else:
+                date_start = prihdr['DATE-OBS']
+
+            if expend_hr < expstart_hr:
+                # Crossed date line between EXPSTART and EXPSTOP
+                date_end = (astrotime.Time(date_start+'T12:00:00', format='isot', scale='ut1') + astrotime.TimeDelta(1.0, format='jd')).isot[0:10]
+            else:
+                date_end = date_start
+
+
+            # Calculate LST for:
+            #    -the time the header was written (assumed to be when PARANG was calculated)
+            #    -the time at the start of the exposure
+            #    -the time at the end
+
+            lst_ref = astrotime.Time(prihdr['DATE-OBS']+'T'+prihdr['UTC'], format='isot', scale='ut1').sidereal_time('apparent', 'greenwich').degree
+            lst0 = astrotime.Time(date_start+'T'+expstart, format='isot', scale='ut1').sidereal_time('apparent', 'greenwich').degree
+            lst1 = (astrotime.Time(date_start+'T'+expstart, format='isot', scale='ut1') + astrotime.TimeDelta(tinteg, format='sec')).sidereal_time('apparent', 'greenwich').degree
+
+            lst_ref = (lst_ref + NIRC2Data.observatory_longitude) % 360.
+            lst0 = (lst0 + NIRC2Data.observatory_longitude) % 360.
+            lst1 = (lst1 + NIRC2Data.observatory_longitude) % 360.
+
+            r = prihdr['RA'] + prihdr['RAOFF'] # degrees
+            d = (prihdr['DEC'] + prihdr['DECOFF']) * np.pi/180. # radians
+            # Header information seems to have changed after 2017.8 (mid Oct 2017)
+            obs_epoch = astrotime.Time(prihdr['DATE-OBS'], format='iso', scale='utc')
+            if obs_epoch.decimalyear < 2017.8:
+                coor = SkyCoord(ra=r, dec=d*180./np.pi, unit=(u.deg, u.deg), frame=FK5, equinox='J2000.0')
+                coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
+                rp = coor_curr.ra.value # degrees
+                dp = (coor_curr.dec.value) * np.pi/180. # radians
+            else:
+                rp = prihdr['RA'] + prihdr['RAOFF'] # degrees
+                dp = (prihdr['DEC'] + prihdr['DECOFF']) * np.pi/180. # radians
+
+            ha_ref = (lst_ref - rp)/15.
+            ha0 = (lst0 - rp)/15.
+            ha1 = (lst1 - rp)/15.          
+
+            if ha0 <= -12.:
+                ha0 += 24.
+            if ha0 > 24.:
+                ha0 -= 24.
+            if ha1 <= -12.:
+                ha1 += 24.
+            if ha1 > 24.:
+                ha1 -= 24.
+            if ha_ref <= -12.:
+                ha_ref += 24.
+            if ha_ref > 24.:
+                ha_ref -= 24.
+
+            h_ref = ha_ref * 15. * np.pi/180.
+            h0 = ha0 * 15. * np.pi/180.
+            h1 = ha1 * 15. * np.pi/180.
+
+            phi = NIRC2Data.observatory_latitude * np.pi/180.
+
+            if ((h1 * h0) < 0) and (d > phi):
+                wrap_flag = 1
+            else:
+                wrap_flag = 0
+
+            result = (romberg(parang_eq, h0, h1, args=(d, phi, wrap_flag))/(h1-h0)) * (180./np.pi)
+
+            pa_ref = -np.arctan2(-np.sin(h_ref), np.cos(dp)*np.tan(phi) - np.sin(dp)*np.cos(h_ref))*(180./np.pi)
+            delta_pa = result-pa_ref
+
+            pa_deg_mean = prihdr['PARANG'] + delta_pa + rotposn - instangl + zp_offset
+            
     else:
         pa_deg_mean = pa_deg
         vpmean = np.nan
@@ -785,6 +893,13 @@ def get_pa(hdulist, obsdate=None, rotmode=None, mean_PA=True, write_hdr=True):
     
     # Flip sign to conform to pyKLIP rotation convention.
     return -1*pa_deg_mean
+
+def parang_eq(H, d, phi, wrap_flag):
+    paint_ineq = np.arctan2(np.sin(H)*np.cos(phi),np.sin(phi)*np.cos(d) - np.sin(d)*np.cos(phi)*np.cos(H))
+    if wrap_flag and (H < 0.0):
+        paint_ineq += 2.0*np.pi
+
+    return paint_ineq
 
 def par_angle(HA, dec, lat):
     """
