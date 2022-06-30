@@ -352,7 +352,7 @@ def _klip_section_multifile_profiler(scidata_indices, wavelength, wv_index, numb
 
 def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, maxnumbasis, radstart, radend, phistart,
                             phiend, minmove, ref_center, minrot, maxrot, spectrum, mode, corr_smooth=1, psflib_good=None,
-                            psflib_corr=None, lite=False, dtype=None, algo='klip', verbose=True):
+                            psflib_corr=None, lite=False, dtype=None, algo='klip', empca_mask_locs=None, verbose=True):
     """
     Runs klip on a section of the image for all the images of a given wavelength.
     Bigger size of atomization of work than _klip_section but saves computation time and memory. Currently no need to
@@ -381,6 +381,9 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
         lite: if True, use low memory footprint mode
         dtype: data type of the arrays. Should be either ctypes.c_float(default) or ctypes.c_double
         algo (str): algorithm to use ('klip', 'nmf', 'empca')
+        empca_mask_locs: 2D list or ndarray with shape (n, 2), consisting of n locations in the format [sep(pixels), PA(degrees)].
+                         These locations will have their weights set to zero for optimization.
+                         Minmove parameter determines the radius (pixels) of the mask.
         verbose (bool): if True, prints out warnings
 
     Returns:
@@ -428,10 +431,67 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
             weights = empca.set_pixel_weights(ref_psfs[:, good_ind], rflat[good_ind], mode='standard', inner_sup=17,
                                               outer_sup=66)
 
+            if empca_mask_locs is not None:
+                # make a mask around the mask locations
+                parangs = _arraytonumpy(img_pa, dtype=dtype) # shape (ncbue, )
+                rflat = np.tile(rflat, (parangs.shape[0], 1)) # shape (ncube, npix in section)
+                # # debug begin
+                # import pdb
+                # phi_corrected = np.copy(phi.reshape((201, 201)))
+                # phi_corrected += np.pi / 2
+                # phi_corrected[phi_corrected < 0] += np.pi * 2
+                # phi_corrected = phi_corrected[None, :, :] + np.radians(parangs[:, None, None])
+                # phi_corrected = phi_corrected % (np.pi * 2)
+                # hdul = fits.HDUList(fits.PrimaryHDU(phi_corrected, None))
+                # hdul.writeto('/home/minghan/debug/klip_phi_derot.fits', overwrite=True)
+                # hdul.close()
+                # phi_diff = np.abs(phi_corrected - np.radians(195.))
+                # phi_diff = phi_diff % (2 * np.pi)
+                # phi_diff[phi_diff > np.pi] = 2 * np.pi - phi_diff[phi_diff > np.pi]
+                # hdul = fits.HDUList(fits.PrimaryHDU(phi_diff, None))
+                # hdul.writeto('/home/minghan/debug/klip_phi_diff_derot.fits', overwrite=True)
+                # hdul.close()
+                # breakpoint()
+                # # debug end
+                phiflat = np.copy(phi[section_ind[0]]) # shape (npix in section)
+                # The phi variable follows the (arbitrary?) convention of starting at the -x axis, in range [-pi, pi]
+                # we need to convert it to starting from +y axis
+                phiflat += np.pi / 2.
+                phiflat[phiflat < 0] += np.pi * 2 # this is not necessary but just to avoid the odd [-pi/2 to 3/2 pi] range
+                # convert phi coordinates to those that starts at 0 from the celestial north
+                phiflat = phiflat[None, :] + np.radians(parangs[:, None]) # shape (ncube, npix in section)
+                phiflat = phiflat % (np.pi * 2)
+                rflat = rflat[:, good_ind]
+                phiflat = phiflat[:, good_ind]
+                # for every specified position, mask out the pixels based on minmove
+                for mask_loc in empca_mask_locs:
+                    mask_sep = mask_loc[0]
+                    mask_pa = mask_loc[1]
+                    # the boundary conditions for the difference in phi need to be treated carefully
+                    phiflat_diff = np.abs(phiflat - np.radians(mask_pa))
+                    phiflat_diff = phiflat_diff % (2 * np.pi)
+                    phiflat_diff[phiflat_diff > np.pi] = 2 * np.pi - phiflat_diff[phiflat_diff > np.pi]
+
+                    mask_ind = (np.abs(rflat - mask_sep) < minmove) & (phiflat_diff < minmove / mask_sep)
+                    weights[mask_ind] = 0.
+                    weights[mask_ind] = 0.
+                    # debug begin
+                    # masks = np.full(aligned_imgs.shape, fill_value=0, dtype='float')
+                    # masks_sec = np.copy(masks[:, section_ind[0]])
+                    # masks_goodsec = np.copy(masks_sec[:, good_ind])
+                    # masks_goodsec[mask_ind] = np.nan
+                    # masks_sec[:, good_ind] = masks_goodsec
+                    # masks[:, section_ind[0]] = masks_sec
+                    # masks = masks.reshape((masks.shape[0], 201, 201))
+                    # hdul = fits.HDUList(fits.PrimaryHDU(masks, None))
+                    # hdul.writeto('/home/minghan/debug/weighted_lowrank_masks.fits', overwrite=True)
+                    # breakpoint()
+                    # debug end
+
             # run empca reduction
             output_imgs_np = _arraytonumpy(output, (output_shape[0], output_shape[1] * output_shape[2], output_shape[3]), dtype=dtype)
             for i, rank in enumerate(numbasis):
-                # get indices of the image section that have enough finite values along the time dimension
+
                 good_ind_model = empca.weighted_empca(ref_psfs[:, good_ind], weights=weights, niter=15, nvec=rank)
                 full_model[:, good_ind] = good_ind_model
                 output_imgs_np[:, section_ind[0], i] = aligned_imgs[:, section_ind[0]] - full_model
@@ -856,7 +916,7 @@ def generate_noise_maps(imgs, aligned_center, dr, IWA=None, OWA=None, numthreads
 def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode='ADI+SDI', annuli=5, subsections=4,
                            movement=3, numbasis=None, aligned_center = None, numthreads=None, minrot=0, maxrot=360,
                            annuli_spacing="constant", maxnumbasis=None, corr_smooth=1, 
-                           spectrum=None, dtype=None, algo='klip', compute_noise_cube=False, **kwargs):
+                           spectrum=None, dtype=None, algo='klip', compute_noise_cube=False, empca_mask_locs=None, **kwargs):
     """
     multithreaded KLIP PSF Subtraction, has a smaller memory foot print than the original
 
@@ -1044,7 +1104,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
                                                 maxnumbasis,
                                                 radstart, radend, phistart, phiend, movement,
                                                 aligned_center, minrot, maxrot, spectrum,
-                                                mode, corr_smooth, None, None, lite, dtype, algo))
+                                                mode, corr_smooth, None, None, lite, dtype, algo, empca_mask_locs))
                         for phistart,phiend in phi_bounds
                         for radstart, radend in rad_bounds]
         else:
@@ -1052,7 +1112,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
                                                maxnumbasis,
                                                radstart, radend, phistart, phiend, movement,
                                                aligned_center, minrot, maxrot, spectrum,
-                                               mode, corr_smooth, None, None, lite, dtype, algo)
+                                               mode, corr_smooth, None, None, lite, dtype, algo, empca_mask_locs)
                         for phistart,phiend in phi_bounds
                         for radstart, radend in rad_bounds]
 
@@ -1102,7 +1162,8 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
                       numbasis=None, aligned_center=None, numthreads=None, minrot=0, maxrot=360, 
                       annuli_spacing="constant", maxnumbasis=None, corr_smooth=1,
                       spectrum=None, psf_library=None, psf_library_good=None, psf_library_corr=None,
-                      save_aligned = False, restored_aligned = None, dtype=None, algo='klip', compute_noise_cube=False, verbose = True):
+                      save_aligned = False, restored_aligned = None, dtype=None, algo='klip', compute_noise_cube=False,
+                      empca_mask_locs=None, verbose = True):
     """
     Multitprocessed KLIP PSF Subtraction
 
@@ -1339,7 +1400,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
                                                                         aligned_center, minrot, maxrot, spectrum,
                                                                         mode, corr_smooth, 
                                                                         psf_library_good, psf_library_corr, False,
-                                                                        dtype, algo, verbose))
+                                                                        dtype, algo, empca_mask_locs, verbose))
                         for phistart,phiend in phi_bounds
                         for radstart, radend in rad_bounds]
         else:
@@ -1349,7 +1410,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
                                                 aligned_center, minrot, maxrot, spectrum,
                                                 mode, corr_smooth,
                                                 psf_library_good, psf_library_corr, False,
-                                                dtype, algo, verbose)
+                                                dtype, algo, empca_mask_locs, verbose)
                         for phistart,phiend in phi_bounds
                         for radstart, radend in rad_bounds]
 
@@ -1404,7 +1465,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
                  numbasis=None, numthreads=None, minrot=0, calibrate_flux=False, aligned_center=None,
                  annuli_spacing="constant", maxnumbasis=None, corr_smooth=1, spectrum=None, psf_library=None, 
                  highpass=False, lite=False, save_aligned = False, restored_aligned = None, dtype=None, algo='klip',
-                 time_collapse="mean", wv_collapse='mean', verbose = True):
+                 time_collapse="mean", wv_collapse='mean', empca_mask_locs=None, verbose = True):
     """
     run klip on a dataset class outputted by an implementation of Instrument.Data
 
@@ -1459,10 +1520,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
     ######### Check inputs ##########
 
     # empca currently does not support movement or minrot
-    if algo.lower() == 'empca' and (minrot != 0 or movement != 0):
-        raise ValueError('empca currently does not support movement, minrot selection criteria, '
-                         'must be set to 0')
-    elif algo.lower() == 'none':
+    if algo.lower() == 'none':
         # remove some psfsubtraction params
         movement = 0
         minmove = 0
@@ -1594,7 +1652,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
                     'spectrum':spectra_template, 'psf_library':master_library,
                     'psf_library_corr':rdi_corr_matrix, 'psf_library_good':rdi_good_psfs,
                     'save_aligned' : save_aligned, 'restored_aligned' : restored_aligned, 'dtype':dtype,
-                    'algo':algo, 'compute_noise_cube':weighted, 'verbose':verbose}
+                    'algo':algo, 'compute_noise_cube':weighted, 'empca_mask_locs':empca_mask_locs, 'verbose':verbose}
 
     #Set MLK parameters
     if mkl_exists:

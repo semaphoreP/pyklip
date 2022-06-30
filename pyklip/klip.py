@@ -19,10 +19,6 @@ def make_polar_coordinates(x, y, center=[0,0]):
 
     r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
     phi = np.arctan2(y - center[1], x - center[0])
-    # TODO: np.arctan2 already ensures return value to be in range [-pi, pi)
-    #       So the following line of code is not necessary
-    #       However, since the following line introduces an offset of -pi, if eliminating the next line of code,
-    #       will need to make sure all of pyklip's reduction is unaffected by eliminating this offset
     # make sure phi is in range [-pi, pi)
     phi = (phi % (2 * np.pi)) - np.pi
 
