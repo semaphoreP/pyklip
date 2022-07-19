@@ -804,7 +804,7 @@ class CHARISData(Data):
         return img
 
 
-    def generate_psfs(self, boxrad=7, spots_collapse='mean', mask_locs=None, mask_rad=15, mask_ref_ind=0,
+    def generate_psfs(self, boxrad=7, spots_collapse='mean', mask_locs=None, mask_rad=5, mask_ref_ind=0,
                       bg_sub='global'):
         """
         Generates PSF for each frame of input data. Only works on spectral mode data.
@@ -812,8 +812,8 @@ class CHARISData(Data):
         Args:
             boxrad: the halflength of the size of the extracted PSF (in pixels)
             spots_collapse: the method to collapse the psfs in this frame, currently supports: 'mean', 'median'
-            mask_locs: ndarray, array of approximate [x, y] pixel locations where bright companions are located.
-                       To be masked out when calculating background noise level. Shape (2,) or (n, 2), where n is the
+            mask_locs: 2D ndarray, array of approximate [x, y] pixel locations where bright companions are located.
+                       To be masked out when calculating background noise level. Shape (n, 2), where n is the
                        number of bright sources that needs to be masked.
             mask_rad: scalar, radius of the mask in pixels.
             mask_ref_ind: the cube index (range: 0-ncube) in the filelist for which mask_locs are specified, used to
@@ -1315,7 +1315,7 @@ def _add_satspot_to_hdr(hdr, wv_ind, spot_num, pos, flux):
     hdr.set(flux_key, value=flux, comment="Peak flux of sat. spot {1} of slice {0}".format(wv_ind, spot_num))
 
 
-def generate_psf(frame, locations, boxrad=5, spots_collapse='mean', bg_sub=None, mask_locs=None, mask_rad=15):
+def generate_psf(frame, locations, boxrad=5, spots_collapse='mean', bg_sub=None, mask_locs=None, mask_rad=5):
     """
     Generates a GPI PSF for the frame based on the satellite spots
     TODO: normalize psfs? GPI module normalizes these to DN units in the generate_PSF_cube() function.
