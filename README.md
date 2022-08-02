@@ -5,7 +5,7 @@ A python library for PSF subtraction for both exoplanet and disk imaging. It use
 
 Want to get started? Check out the [quick GPI KLIP tutorial](http://pyklip.readthedocs.io/en/latest/klip_gpi.html) for the basics of pyKLIP.
 
-Development led by Jason Wang. Contributions made by Jonathan Aguilar, JB Ruffio, Rob de Rosa, Schuyler Wolff, Abhijith Rajan, Zack Briesemeister, Kate Follette, Maxwell Millar-Blanchaer, Alexandra Greenbaum, Simon Ko, Tom Esposito, Elijah Spiro, Pauline Arriaga, Bin Ren, Alan Rainot, Arthur Vigan, Graça Rocha, Jacob Golomb, Johan Mazoyer, Jea Adams, Aarynn Carter, Minghan Chen, Robert Thompson, and Laurent Pueyo (see contributors.txt for a details).
+Development led by Jason Wang. Contributions made by Jonathan Aguilar, JB Ruffio, Rob de Rosa, Schuyler Wolff, Abhijith Rajan, Zack Briesemeister, Kate Follette, Maxwell Millar-Blanchaer, Alexandra Greenbaum, Simon Ko, Tom Esposito, Elijah Spiro, Pauline Arriaga, Bin Ren, Alan Rainot, Arthur Vigan, Graça Rocha, Jacob Golomb, Johan Mazoyer, Jea Adams, Aarynn Carter, Minghan Chen, Robert Thompson, Jens Kammerer, and Laurent Pueyo (see contributors.txt for a details).
 
 If you use pyKLIP in your research, please cite the Astrophysical Source Code Library record of it: [ASCL](http://ascl.net/1506.001) or [ADS](http://adsabs.harvard.edu/abs/2015ascl.soft06001W).
 

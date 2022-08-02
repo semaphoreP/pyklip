@@ -3,6 +3,11 @@
 Release Notes
 ==============
 
+Version 2.6
+ * JWST module to support both NIRCAM and MIRI coronagraphy. See SpaceKLIP for pipeline capabilities. (Aarynn Carter, Jens Kammerer)
+ * New CHARIS instrument tutorial (Minghan Chen)
+ * Fix P1640 photutils import issue (Jason Wang)
+
 Version 2.5
  * Add support for RDI for FM classes FMPlanetPSF and MatchedFilter (FMMF) (Jason Wang)
  * Improved error checking for RDI PSF Library before running KLIP (Jason Wang)

@@ -40,8 +40,10 @@ Graça Rocha and Jacob Golomb: wrote the PlanetEvidence code
 
 Jea Adams: Added field dependent correction to fmpsf.py, wrote tests for coronagrpahic throughput, general improvements and improved documentation throughout
 
-Aarynn Carter: Fixed bugs with running a single science image through RDI.
+Aarynn Carter: Built the JWST interface, bug fixes
 
 Minghan Chen: Helped with key features of the CHARIS interface, wrote the emperical PCA code, general code cleanup
 
 Robert Thompson: Wrote STIS interface
+
+Jens Kammerer: Helped build the JWST interface

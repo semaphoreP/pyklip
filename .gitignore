@@ -25,3 +25,5 @@ examples/.ipynb_checkpoints/
 build/
 .pytest_cache/
 dist/
+.DS_Store
+pyklip/.DS_Store
