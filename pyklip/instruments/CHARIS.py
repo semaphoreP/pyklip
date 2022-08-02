@@ -87,7 +87,7 @@ class CHARISData(Data):
 
     def __init__(self, filepaths, guess_spot_index=0, guess_spot_locs=None, guess_center_loc=None, skipslices=None,
                  PSF_cube=None, update_hdrs=None, sat_fit_method='global', IWA=None, OWA=None, platecal=False,
-                 smooth=True, photcal=False):
+                 smooth=False, photcal=False):
         """
         Initialization code for CHARISData
 
