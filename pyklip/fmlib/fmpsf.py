@@ -350,7 +350,7 @@ class FMPlanetPSF(NoFM):
             pas = np.append(pas, np.nan * np.ones(rdi_psfs.shape[0]))
             wvs = np.append(wvs, np.nan * np.ones(rdi_psfs.shape[0]))
             ref_rdi_indices = np.append(ref_rdi_indices, np.ones(rdi_psfs.shape[0]))
-            mask_centers_ref = np.append(mask_centers_ref, np.nan * np.ones(rdi_psfs.shape[0], 2), axis=0)
+            mask_centers_ref = np.append(mask_centers_ref, np.nan * np.ones((rdi_psfs.shape[0], 2)), axis=0)
 
 
         # generate models for the PSF of the science image
