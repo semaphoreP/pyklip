@@ -217,10 +217,13 @@ class JWSTData(Data):
 
                 # NIRCam specifics
                 if inst == 'NIRCAM':
-                    crp1 = f['SCI'].header['CRPIX1']-1-0.2
-                    crp2 = f['SCI'].header['CRPIX2']-1+0.2
-                    print('WARNING: Modifying NIRCam centers by (-0.2,+0.2)')
-
+                    if f[0].header['CORONMSK'][-1] == 'R':
+                        crp1 = f['SCI'].header['CRPIX1']-1-0.2
+                        crp2 = f['SCI'].header['CRPIX2']-1+0.2
+                        print('WARNING: Modifying NIRCam centers by (-0.2,+0.2)')
+                    else:
+                        crp1 = f['SCI'].header['CRPIX1']-1
+                        crp2 = f['SCI'].header['CRPIX2']-1
                     # Use the central 11x11 pixels (based on coronagraph center CRPIX)
                     # to identify the absolute star location using the bright
                     # leakage speckle. Only do this for the first image
@@ -339,9 +342,9 @@ class JWSTData(Data):
             reference = data_medsub[0].copy() # align to first science image
 
             tstart = time.time()
+            ref_shifts = reference
+            msub_shifts = data_medsub
             if self.centering == 'jwstpipe':
-                ref_shifts = reference
-                msub_shifts = data_medsub
                 shifts, res_before, res_after = self.align_jwstpipe(ref_shifts, msub_shifts[1:], mask=mask)
             elif self.centering == 'imageregis':
                 shifts, res_before, res_after = self.align_imageregis(ref_shifts, msub_shifts[1:])
@@ -350,6 +353,8 @@ class JWSTData(Data):
                 shifts = shift_data['shifts']
                 res_before = shift_data['res_before']
                 res_after = shift_data['res_after']
+            elif self.centering == 'brute':
+                shifts, res_before, res_after = self.align_brute(ref_shifts, msub_shifts[1:], mask=mask)
             else:
                 raise ValueError('Unknown centering algorithm')
 
@@ -358,6 +363,10 @@ class JWSTData(Data):
                 np.savez(scishiftfile, shifts=shifts, res_before=res_before, res_after=res_after)
 
             tend = time.time()
+
+            print('shifts looks like:')
+            print(len(shifts))
+            print(shifts[0, 0:2])
 
             f, ax = plt.subplots(1, 2, figsize=(2*6.4, 1*4.8))
             ax[0].plot(res_before, label='before align')
@@ -392,7 +401,7 @@ class JWSTData(Data):
             plt.savefig(scishiftfile+'.pdf')
             plt.clf()
             # plt.savefig(centering+'_sci_bad.pdf')
-            #plt.show()
+            # plt.show()
 
             # # Let's median the shifts
             # temp = np.unique(pas[1:]) # Get unique PAs
@@ -569,6 +578,8 @@ class JWSTData(Data):
                 if (mask is None):
                     data_medsub = data_medsub[:,int(crp2-tr):int(crp2+tr+1),int(crp1-tr):int(crp1+tr+1)]
             tstart = time.time()
+            ref_shifts = reference
+            msub_shifts = data_medsub
             if self.centering == 'jwstpipe':
                 # Blurring was messing up the iamge registration
                 # if self.blur != False:
@@ -576,8 +587,6 @@ class JWSTData(Data):
                 #     ref_shifts = gaussian_filter(reference, self.blur)
                 #     msub_shifts = np.array([gaussian_filter(img, self.blur) for img in data_medsub])
                 # else:
-                ref_shifts = reference
-                msub_shifts = data_medsub
                 shifts, res_before, res_after = self.align_jwstpipe(ref_shifts, msub_shifts, mask=mask)
             elif self.centering == 'imageregis':
                 shifts, res_before, res_after = self.align_imageregis(reference, data_medsub)
@@ -586,6 +595,8 @@ class JWSTData(Data):
                 shifts = shift_data['shifts']
                 res_before = shift_data['res_before']
                 res_after = shift_data['res_after']
+            elif self.centering == 'brute':
+                shifts, res_before, res_after = self.align_brute(ref_shifts, msub_shifts, mask=mask)
             else:
                 raise ValueError('Unknown centering algorithm')
 
@@ -631,7 +642,7 @@ class JWSTData(Data):
             plt.savefig(refshiftfile+'.pdf')
             plt.clf()
             # plt.savefig(centering+'_ref_bad.pdf')
-            #plt.show()
+            # plt.show()
 
             # Let's median the shifts
             # temp = np.unique(psflib_offsets, axis=0)
@@ -854,6 +865,120 @@ class JWSTData(Data):
             # import pdb; pdb.set_trace()
 
         return np.array(shifts), np.array(res_before), np.array(res_after)
+
+
+    def align_brute(self,
+                    reference,
+                    data,
+                    mask=None,
+                    grid_size=None):
+        """
+        Align a 3D data cube of images to a reference image using
+        a "brute force" image by image comparison, subtraction,
+        and residual estimation. SLOW!!!
+
+        Parameters
+        ----------
+        reference : array
+            A 2D image to be aligned to.
+        target : array
+            A 3D data cube of images to align to reference.
+
+        Returns
+        -------
+        shifts : array
+            xshift, yshift, beta to align each image.
+        res_before : array
+            Sum of squares of residuals between the reference and each image
+            before alignment.
+        res_after : array
+            Sum of squares of residuals between the reference and each image
+            after alignment.
+        """
+        if data.ndim != 3:
+            raise UserWarning('Requires 3D data cube')
+        if grid_size is None:
+            grid_size = 10
+
+        init_shifts = []
+        fine_shifts = np.zeros([data.shape[0], 2])
+        res_before = []
+        res_after = []
+
+        print("brute forcing a shift for {} images, this might take a while".format(data.shape[0]))
+        for i in range(data.shape[0]):
+            pp = self.align_fourierLSQ(reference, data[i].copy(), mask=mask)
+            init_shifts += [pp[0]]
+            res_before += [np.sum((reference-pp[0][2]*data[i])**2)]
+            res_after += [np.sum(pp[2]['fvec']**2)]
+
+        ycen = reference.shape[1]/2
+        xcen = reference.shape[0]/2
+
+        # print('make moving masks')
+        mask_ref_array = np.zeros([len(init_shifts),reference.shape[0],reference.shape[1]])
+
+        for pp in np.arange(0,len(init_shifts)):
+            other_dither = init_shifts[pp]
+            mask_ref_array[pp] = pyklip.klip.align_and_scale(mask, ([xcen,ycen]), ([xcen-other_dither[0], ycen-other_dither[1]]))
+
+        # set up stuff outside of loop
+        ys,xs = np.indices(reference.shape,dtype=float)
+        x_shift_array = np.arange(-1,1,0.05)
+        shifts_array = np.zeros([reference.shape[0],reference.shape[1],2])
+        y_shifts_2D = np.dot(np.ones([len(x_shift_array),1]),np.array([x_shift_array]))
+        x_shifts_2D = np.transpose(y_shifts_2D)
+
+        from tqdm import trange
+        # start loop
+        for index_cube in trange(data.shape[0]):
+            moving_references = np.zeros([data.shape[0],len(x_shift_array),len(x_shift_array),reference.shape[0],reference.shape[1]])
+            cost = np.zeros([data.shape[0],grid_size,len(x_shift_array),len(x_shift_array)])
+            # print(index_cube)
+            current_dither = init_shifts[0]
+            other_dither = init_shifts[index_cube]
+            x_shift = other_dither[0]- current_dither[0] + xcen
+            y_shift = other_dither[1] - current_dither[1] + ycen
+            pp = 0
+            for dx in x_shift_array:
+                qq = 0
+                for dy in x_shift_array:
+                    im_tmp_shift = pyklip.klip.align_and_scale(reference, ([xcen,ycen]), ([xcen-x_shift+dx, ycen-y_shift+dy]))
+                    moving_references[index_cube,pp,qq,:,:] = im_tmp_shift
+                    qq = qq + 1
+                pp = pp + 1
+            working_cube = data[index_cube]
+            mask_ref = mask_ref_array[index_cube]
+            pp = 0
+            for kk in np.arange(0,grid_size,1):
+                working_image = working_cube[kk]
+                for pp in np.arange(0,len(x_shift_array)):
+                    for qq in np.arange(0,len(x_shift_array)):
+                        moved_ref =  moving_references[index_cube,pp,qq,:,:]
+                        cost[index_cube,kk,pp,qq] = np.nansum(np.abs(mask_ref*(moved_ref-working_image))**2)
+                    qq = qq + 1
+                pp = pp + 1
+            for kk in np.arange(0,grid_size,1):
+                cost_tmp = cost[index_cube,kk]
+                index_min_cost = cost_tmp == np.min(cost_tmp)
+                dy_min = y_shifts_2D[index_min_cost][0]
+                dx_min = x_shifts_2D[index_min_cost][0]
+                shifts_array[index_cube,kk] = np.array([dx_min,dy_min])
+                fine_shifts[index_cube] = np.array([init_shifts[index_cube][0]+dx_min, init_shifts[index_cube][1]+dy_min])
+
+        print('adding shifts to stack')
+        shifts = np.zeros([fine_shifts.shape[0], 3])
+        for index_cube in range(fine_shifts.shape[0]):
+            pp = [0., 0., 1.]
+            init_shift_i = init_shifts[index_cube]
+            fine_shift_i = fine_shifts[index_cube]
+            pp[0] = init_shift_i[0] + fine_shift_i[0]
+            pp[1] = init_shift_i[1] + fine_shift_i[1]
+            pp[2] = init_shift_i[2]
+            shifts[index_cube] += np.asarray(pp)
+
+        return shifts, np.array(res_before), np.array(res_after)
+
 
     def scale_subtract(self,
                        pp,
