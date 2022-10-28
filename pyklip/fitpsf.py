@@ -711,6 +711,10 @@ def lnlike(fitparams, fma, cov_func, readnoise=False, negate=False):
 
     loglikelihood = -0.5 * (residuals + constant)
 
+    # # L1 norm loglikelihood
+    # # MAD
+    # MAD = np.mean(np.abs(diff_ravel-np.median(diff_ravel)))
+    # loglikelihood = np.nansum(diff_ravel/MAD)
     if negate:
         loglikelihood *= -1
     
