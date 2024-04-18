@@ -15,6 +15,12 @@ In this tutorial, we present simple functions to compute a cross-correlation for
 
 Please find an example ipython notebook (``pyklip/examples/kpop_tutorial.ipynb``) using beta Pictoris test data available in the test directory of pyklip.
 
+Attribution
+-----------
+If you use this feature, please cite:
+
+ * `Ruffio, J.-B., Macintosh, B., Wang, J. J., et al. 2017, ApJ, 842, 14. <https://ui.adsabs.harvard.edu/abs/2017ApJ...842...14R/abstract>`_
+
 Cross-correlation
 -----------------
 

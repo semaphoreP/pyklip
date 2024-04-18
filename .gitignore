@@ -2,15 +2,22 @@
 *.out
 *.pyc
 *.zip
+*.pkl
+*.h5
 
 #ignore fits files
 !pyklip/pickles/*.fits
 !pyklip/filters/*.fits
 version.py
+
+# ignore testing files
 tests/*.fits
 tests/*.png
 examples/*.fits
-
+tests/data/p1640/output/*
+tests/data/p1640/shared_spot_folder/*
+tests/diskfm_dir/*
+examples/*.png
 
 
 #ignore auxiliary directories

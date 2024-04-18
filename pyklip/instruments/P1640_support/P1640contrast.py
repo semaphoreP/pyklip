@@ -199,7 +199,7 @@ if __name__ == "__main__":
         contrast_maps[fname] = calc_contrast_single_file(ff, core_info, chans=channels)
         print("Processing complete, contrast maps stored in variable 'contrast_maps'")
 
-    plate_scale = np.float(cfp.get("Contrast","plate_scale"))
+    plate_scale = float(cfp.get("Contrast","plate_scale"))
     if SaveFlag is True:
         figure_path = cfp.get("Contrast","figure_path")
         sumchan = 'chan23'

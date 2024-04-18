@@ -738,7 +738,7 @@ class P1640Data(Data):
                     #y_stamp = y_grid[(yarr_spot-boxw/2):(yarr_spot+boxw/2),(xarr_spot-boxw/2):(xarr_spot+boxw/2)]
                     #print(spotx,spoty)
                     #print(stamp_x+ spotx-xarr_spot,stamp_y+spoty-yarr_spot)
-                    stamp_x, stamp_y = np.meshgrid(np.arange(boxw, dtype=np.float32), np.arange(boxw, dtype=np.float32))
+                    stamp_x, stamp_y = np.meshgrid(np.arange(boxw, dtype=float), np.arange(boxw, dtype=float))
                     dx = spotx-xarr_spot
                     dy = spoty-yarr_spot
                     #stamp_x += spotx-xarr_spot
@@ -846,9 +846,9 @@ class P1640Data(Data):
             rad_psf_cube = np.zeros((nl,nx,nx))
             #current_slice = np.zeros((nx,nx))
 
-            stamp_x, stamp_y = np.meshgrid(np.arange(nx, dtype=np.float32), np.arange(nx, dtype=np.float32))
+            stamp_x, stamp_y = np.meshgrid(np.arange(nx, dtype=float), np.arange(nx, dtype=float))
             stamp_r = np.sqrt((stamp_x - nx/2)**2+(stamp_y - nx/2)**2)
-            stamp_x_hd, stamp_y_hd = np.meshgrid(np.arange(nx_hd, dtype=np.float32)/(nx_hd-1)*(nx-1), np.arange(nx_hd, dtype=np.float32)/(nx_hd-1)*(nx-1))
+            stamp_x_hd, stamp_y_hd = np.meshgrid(np.arange(nx_hd, dtype=float)/(nx_hd-1)*(nx-1), np.arange(nx_hd, dtype=float)/(nx_hd-1)*(nx-1))
             for l in range(nl):
                 hd_psf[l,:,:] = ndimage.map_coordinates(self.psfs[l,:,:], [stamp_y_hd, stamp_x_hd])
                 #hd_psf[l,nx/2*k_hd,nx/2*k_hd] = 0. # center
@@ -1094,8 +1094,8 @@ def generate_psf(frame, locations, boxrad=5, medianboxsize=30):
     #mask source for median filter
     masked = np.copy(cleaned)
     for loc in locations:
-        spotx = np.int(np.round(loc[0]))
-        spoty = np.int(np.round(loc[1]))
+        spotx = int(np.round(loc[0]))
+        spoty = int(np.round(loc[1]))
         masked[spotx-boxrad:spotx+boxrad+1, spoty-boxrad:spoty+boxrad+1] = np.nanmedian(
             masked.reshape(masked.shape[0]*masked.shape[1]))
     #subtract out median filtered image
@@ -1137,7 +1137,7 @@ def rescale_wvs(exthdrs, wvs, refwv=18, skipslices=None):
     if skipslices is not None:
         wv_indicies = np.delete(wv_indicies, skipslices)
     sats = np.array([[[h['SATS{0}_{1}'.format(i,j)].split() for i in wv_indicies]
-                          for j in range(0,4)] for h in exthdrs], dtype=np.float)
+                          for j in range(0,4)] for h in exthdrs], dtype=float)
     sats = sats.mean(axis=0)
     pairs = [(0,3), (1,2)]
     separations = np.mean([0.5*np.sqrt(np.diff(sats[p,:,0], axis=0)[0]**2 + np.diff(sats[p,:,1], axis=0)[0]**2) 

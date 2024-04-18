@@ -40,9 +40,9 @@ if sys.version_info[0] < 3:
     import tkFileDialog
 else:
     import tkinter as Tk
-    import filedialog
+    import tkinter.filedialog
 
-import tkFont
+import tkinter.font as tkFont
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 
@@ -496,7 +496,7 @@ class CubeChecker:
                     i = "  * " + i
                 good_cubes_listbox.insert(Tk.END, i)
             exptime = get_total_exposure_time(good_cubes)
-            expmin = np.int(np.floor(exptime.value))
+            expmin = int(np.floor(exptime.value))
             expsec = exptime.decompose().value % 60
             exptimevar.set("Total exposure time: {0} min {1:0.0f} sec".format(expmin, expsec))
             #print(exptimestr)

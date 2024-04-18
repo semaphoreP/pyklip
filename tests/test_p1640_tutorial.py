@@ -29,24 +29,14 @@ def test_p1640_tutorial(mock_klip_parallelized):
     #create a mocked klip parallelized
     mock_klip_parallelized.return_value = (np.zeros((3, 96, 281, 281)), np.array([140, 140]), np.array([1.]))
 
-    directory = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + os.path.join('..', 'pyklip', 'instruments',
-                                                                                        'P1640_support', 'tutorial')
-
-
-    #tarball_get = 'wget https://sites.google.com/site/aguilarja/otherstuff/pyklip-tutorial-data/P1640_tutorial_data' \
-    #              '.tar.gz '
-    tarball_get = 'wget --no-check-certificate https://onedrive.live.com/download?cid=71F85EECD88DF08C\&resid=71F85EECD88DF08C%21119153\&authkey=AE1Q53wMCBnoQYg -O P1640_tutorial_data.tar.gz'
-    tarball_command = 'tar -xvf P1640_tutorial_data.tar.gz'
 
     # time it
     t1 = time()
 
-    p1640datadir = os.path.join(directory,'data')
-    os.chdir(p1640datadir)
-    os.system(tarball_get)
-    os.system(tarball_command)
+    directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    p1640datadir = os.path.join(directory,'p1640')
 
-    filelist = glob.glob(p1640datadir +os.path.sep+ "*Occulted*.fits")
+    filelist = glob.glob(os.path.join(p1640datadir, "*Occulted*.fits"))
     # should have 3 files in the directory after downloading and unzipping the tarball.
     assert (len(filelist) == 3)
 
@@ -57,7 +47,9 @@ def test_p1640_tutorial(mock_klip_parallelized):
 
     # Fit grid spots
     import pyklip.instruments.P1640_support.P1640spots as P1640spots
-    spot_filepath = os.path.join(directory,'shared_spot_folder')+ os.path.sep
+    spot_filepath = os.path.join(p1640datadir,'shared_spot_folder')+ os.path.sep
+    if not os.path.exists(spot_filepath):
+        os.makedirs(spot_filepath)
     # spot_filepath = directory + os.path.sep + 'shared_spot_folder/'
     spot_filesuffix = '-spot'
     spot_fileext = 'csv'
@@ -74,7 +66,9 @@ def test_p1640_tutorial(mock_klip_parallelized):
     import pyklip.instruments.P1640 as P1640
     import pyklip.parallelized as parallelized
     dataset = P1640.P1640Data(filelist, spot_directory=spot_filepath)
-    output = os.path.join(directory,'output')+ os.path.sep
+    output = os.path.join(p1640datadir,'output')+ os.path.sep
+    if not os.path.exists(output):
+        os.makedirs(output)
 
     parallelized.klip_dataset(dataset, outputdir=output, fileprefix="woohoo", annuli=5, subsections=4, movement=3,
                               numbasis=[1, 20, 100], calibrate_flux=False, mode="SDI")
@@ -84,15 +78,15 @@ def test_p1640_tutorial(mock_klip_parallelized):
 
     print("{0} seconds to run".format(time() - t1))
 
-    ### for the purpose of this test, we are cleaning after ourselves the DL data
-    ### and the images
-    for item in os.listdir(p1640datadir):
-        if (item.endswith(".fits")) or (item.endswith(".gz")):
-            os.remove(os.path.join(p1640datadir, item))
+    # ### for the purpose of this test, we are cleaning after ourselves the DL data
+    # ### and the images
+    # for item in os.listdir(p1640datadir):
+    #     if (item.endswith(".fits")) or (item.endswith(".gz")):
+    #         os.remove(os.path.join(p1640datadir, item))
 
-    for item in os.listdir(output):
-        if item.endswith(".fits"):
-            os.remove(os.path.join(output, item))
+    # for item in os.listdir(output):
+    #     if item.endswith(".fits"):
+    #         os.remove(os.path.join(output, item))
 
 if __name__ == "__main__":
     test_p1640_tutorial()

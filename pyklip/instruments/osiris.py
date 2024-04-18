@@ -173,8 +173,8 @@ class Ifs(Data):
                 stamp = im[(yarr_spot-pixelsbefore):(yarr_spot+pixelsafter),\
                                 (xarr_spot-pixelsbefore):(xarr_spot+pixelsafter)]
                 # Define coordinates grids for the stamp
-                stamp_x, stamp_y = np.meshgrid(np.arange(psf_cube_size, dtype=np.float32),
-                                               np.arange(psf_cube_size, dtype=np.float32))
+                stamp_x, stamp_y = np.meshgrid(np.arange(psf_cube_size, dtype=float),
+                                               np.arange(psf_cube_size, dtype=float))
                 # Calculate the shift of the sat spot centroid relative to the closest pixel.
                 dx = spotx-xarr_spot
                 dy = spoty-yarr_spot

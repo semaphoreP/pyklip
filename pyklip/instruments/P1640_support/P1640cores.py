@@ -39,10 +39,10 @@ def get_cube_xsection(orig_cube, center, width):
         print("bad value for center")
         return None
     # [(xlow, xhigh),(ylow,yhigh)]
-    xlims = (np.floor(np.nanmax([0,center[0]-width])).astype(np.int),
-             np.ceil(np.nanmin([shape[-1],center[0]+width])).astype(np.int))
-    ylims = (np.floor(np.nanmax([0,center[1]-width])).astype(np.int),
-             np.ceil(np.nanmin([shape[-1],center[1]+width])).astype(np.int))
+    xlims = (np.floor(np.nanmax([0,center[0]-width])).astype(int),
+             np.ceil(np.nanmin([shape[-1],center[0]+width])).astype(int))
+    ylims = (np.floor(np.nanmax([0,center[1]-width])).astype(int),
+             np.ceil(np.nanmin([shape[-1],center[1]+width])).astype(int))
     center_lims = np.array([xlims, ylims])
     cube_cutout = cube[:, 
                        center_lims[0][0]:center_lims[0][1], 
@@ -97,7 +97,7 @@ def get_PSF_center(orig_cube, refchan=26, fine=False):
         return None
     # If you want centroiding, do a second pass on a cross-section of the cube centered on the initial guess
     if fine == True:
-        init_center = np.floor(np.nanmean(centers,axis=0)).astype(np.int)
+        init_center = np.floor(np.nanmean(centers,axis=0)).astype(int)
         center_cutout = get_cube_xsection(cube, init_center, width)
         centers = np.array([centroid_image(img) for img in center_cutout]) + init_center - width
     # negative values are illegal, set to bottom corner
@@ -210,7 +210,7 @@ def _aperture_convolve_img(orig_img, aperture_radius, apkwargs={'method':'subpix
     ind = np.array(map(flattened_ind, ncols,
                        img_phot['ycenter'],
                        img_phot['xcenter']),
-                   dtype=np.int)
+                   dtype=int)
     phot_img = np.ravel(phot_img)
     # map the photometry to the cube
     phot_img[ind] = img_phot['aperture_sum']
@@ -324,14 +324,14 @@ def make_median_core(core_cubes):
     core_cutouts = np.zeros((len(tmp_core_cutouts), max_shape[-3],
                              max_shape[-2], max_shape[-1]))*np.nan # make a nan-cube
     for i, cutout in enumerate(tmp_core_cutouts):
-        shift = np.abs((cutout.shape[-2:] - max_shape[-2:])/2).astype(np.int)
+        shift = np.abs((cutout.shape[-2:] - max_shape[-2:])/2).astype(int)
         core_cutouts[i,:,shift[-2]:max_shape[-2]-shift[-2],shift[-1]:max_shape[-1]-shift[-1]] = cutout[:,:,:].copy()
     # align the cutouts so you can median-combine them
     # only need to align corresponding channels
     aligned_cutouts = core_cutouts.copy()
     dims = aligned_cutouts.shape
     aligned_cutouts = aligned_cutouts.reshape(reduce(lambda x,y:x*y,dims[:-2]), dims[-2], dims[-1])
-    new_center = map(lambda x: np.floor(x/2.).astype(np.int), core_cutouts.shape[-2:])[::-1]
+    new_center = map(lambda x: np.floor(x/2.).astype(int), core_cutouts.shape[-2:])[::-1]
     old_centers = get_PSF_center(aligned_cutouts, fine=True)[:,::-1]
     for i in range(len(aligned_cutouts)):
         aligned_cutouts[i] = align_and_scale(aligned_cutouts[i], new_center, old_centers[i])

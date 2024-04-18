@@ -14,7 +14,6 @@
 
 import sys
 import os
-import pyklip
 
 #for handling different python versions
 if sys.version_info < (3,0):
@@ -27,6 +26,8 @@ else:
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath(__file__) + "../../pyklip/")
+
+import pyklip
 
 # -- General configuration ------------------------------------------------
 

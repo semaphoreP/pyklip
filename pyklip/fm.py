@@ -920,7 +920,7 @@ def _save_rotated_section(input_shape, sector, sector_ind, output_img, output_im
 
     # create the coordinate system of the image to manipulate for the transform
     dims = input_shape
-    x, y = np.meshgrid(np.arange(dims[1], dtype=np.float32), np.arange(dims[0], dtype=np.float32))
+    x, y = np.meshgrid(np.arange(dims[1], dtype=float), np.arange(dims[0], dtype=float))
 
     # if necessary, move coordinates to new center
     if new_center is not None:

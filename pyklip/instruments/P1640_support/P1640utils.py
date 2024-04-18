@@ -160,7 +160,7 @@ def get_PSF_center(cube, refchan=26, fine=False):
         return None
     # If you want centroiding, do a second pass
     if fine == True:
-        init_center = np.floor(np.nanmean(centers,axis=0)).astype(np.int)
+        init_center = np.floor(np.nanmean(centers,axis=0)).astype(int)
         center_cutout = get_cube_xsection(cube, init_center, width)
         centers = np.array([centroid_image(img) for img in center_cutout]) + init_center - width
     centers = np.fmax(0, centers)

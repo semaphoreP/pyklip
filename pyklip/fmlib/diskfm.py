@@ -439,22 +439,21 @@ class DiskFM(NoFM):
 
         # We save the KL basis and params for this image and section in a dictionnaries
         if self.save_basis is True:
-            # save the parameter used in KLIP-FM. We save a float64 to avoid pbs
+            # save the parameter used in KLIP-FM. We save a float to avoid pbs
             # in the saving and loading
 
             if mode == 'RDI':
-                self.klparam_dict['isRDI'] = np.float64(1.)
+                self.klparam_dict['isRDI'] = float(1.)
             else:
-                self.klparam_dict['isRDI'] = np.float64(0.)
+                self.klparam_dict['isRDI'] = float(0.)
 
             [IWA, OWA] = IOWA
-            self.klparam_dict['IWA'] = np.float64(IWA)
-            self.klparam_dict['OWA'] = np.float64(OWA)
+            self.klparam_dict['IWA'] = float(IWA)
+            self.klparam_dict['OWA'] = float(OWA)
 
-            self.klparam_dict['input_img_shape'] = np.float64(input_img_shape)
-            self.klparam_dict['numbasis'] = np.float64(numbasis)
-            self.klparam_dict['output_imgs_shape'] = np.float64(
-                output_img_shape)
+            self.klparam_dict['input_img_shape'] = np.array(input_img_shape, dtype=float)
+            self.klparam_dict['numbasis'] = float(numbasis)
+            self.klparam_dict['output_imgs_shape'] = np.array(output_img_shape, dtype=float)
 
             # To have a single identifier for each set of aligned images,
             # we save the wavelenght in nm
@@ -463,15 +462,15 @@ class DiskFM(NoFM):
 
             # save the center for aligning the image in KLIP-FM. In practice, this
             # center will be used for all the models after we load.
-            self.klparam_dict['aligned_center_x'] = np.float64(ref_center[0])
-            self.klparam_dict['aligned_center_y'] = np.float64(ref_center[1])
+            self.klparam_dict['aligned_center_x'] = float(ref_center[0])
+            self.klparam_dict['aligned_center_y'] = float(ref_center[1])
 
             # We save information about the dataset that will be used when we load the KL basis
-            self.klparam_dict['PAs'] = np.float64(self.PAs)
-            self.klparam_dict['wvs'] = np.float64(self.wvs)
+            self.klparam_dict['PAs'] = np.array(self.PAs, dtype=float)
+            self.klparam_dict['wvs'] = np.array(self.wvs, dtype=float)
 
-            self.klparam_dict['nwvs'] = np.float64(self.nwvs)
-            self.klparam_dict['nfiles'] = np.float64(self.nfiles)
+            self.klparam_dict['nwvs'] = np.array(self.nwvs, dtype=float)
+            self.klparam_dict['nfiles'] = np.array(self.nfiles, dtype=float)
 
             # To have a single identifier for each set of section/image for the
             # dictionnaries key, we use section first pixel and image number
@@ -619,10 +618,10 @@ class DiskFM(NoFM):
         # Convert everything to np arrays and types to be safe for the saving.
         for key in self.section_ind_dict.keys():
             self.section_ind_dict[key] = np.asarray(self.section_ind_dict[key])
-            self.radstart_dict[key] = np.float64(self.radstart_dict[key])
-            self.radend_dict[key] = np.float64(self.radend_dict[key])
-            self.phistart_dict[key] = np.float64(self.phistart_dict[key])
-            self.phiend_dict[key] = np.float64(self.phiend_dict[key])
+            self.radstart_dict[key] = float(self.radstart_dict[key])
+            self.radend_dict[key] = float(self.radend_dict[key])
+            self.phistart_dict[key] = float(self.phistart_dict[key])
+            self.phiend_dict[key] = float(self.phiend_dict[key])
 
         _, file_extension = path.splitext(self.basis_filename)
 
@@ -967,7 +966,7 @@ def _recursively_save_dict_contents_to_group(h5file, path, dic):
 
     """
     for key, item in dic.items():
-        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes)):
+        if isinstance(item, (np.ndarray, int, float, str, bytes, np.number)):
             h5file[path + key] = item
         elif isinstance(item, dict):
             _recursively_save_dict_contents_to_group(h5file, path + key + '/',

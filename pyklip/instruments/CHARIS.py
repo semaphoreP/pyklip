@@ -600,7 +600,7 @@ class CHARISData(Data):
 
             with fits.open(filename, mode='update') as hdulist:
                 hdulist[1].header = hdr
-                hdulist.flush()
+                # hdulist.flush()
 
 
     def save_platecal_cubes(self, modified_data, dims):

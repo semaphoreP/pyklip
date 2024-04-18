@@ -699,7 +699,7 @@ def fitcen_parallel(infiles, cubes, ivars, prihdrs, astrogrid_status=None, astro
     fids = _get_fids(prihdrs)
 
     lamlist = []
-    grid_on = np.zeros(len(cubes), np.int32)
+    grid_on = np.zeros(len(cubes), int)
 
     ####################################################################
     # Load each file, get the wavelengths, and pass it to fitcen.

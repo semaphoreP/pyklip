@@ -447,7 +447,7 @@ class MatchedFilter(NoFM):
             col_id_list = col_id_list_tmp
 
         greenboard = np.zeros((self.ny,self.nx))
-        x_bbfm, y_bbfm = np.meshgrid(np.arange(self.ny, dtype=np.float32), np.arange(self.nx, dtype=np.float32))
+        x_bbfm, y_bbfm = np.meshgrid(np.arange(self.ny, dtype=float), np.arange(self.nx, dtype=float))
         # flip x if needed to get East left of North
         if flipx is True:
             x_bbfm = ref_center[0] - (x_bbfm - ref_center[0])

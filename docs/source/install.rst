@@ -3,10 +3,28 @@
 Installation
 ==============
 
-Dependencies
+Quick Install
 -------------
+`pyKLIP` is pip-installable::
+
+    $ pip install pyklip
+
+However, if you need to modify the source code, we recommend you do the installation from source code below instead.
+You can overwrite a pip-install using the install from source code instructions below, so you can always do the pip install
+first, and reinstall from source code later when you need to. 
+
+Note that the pip-installable pyklip does not install all dependencies for all the various modules, just the core functionality.
+This should emcompass the large majority of use cases. 
+However, there is a chance that you need to install additional packages for specific modules. We are working on fixing this, so that
+everything is installed by default, but avoiding installing too many dependencies. 
+
+Install from Source Code
+------------------------
+
+Dependencies
+^^^^^^^^^^^^
 Before you install pyKLIP, you will need to install the following packages, which are useful for most astronomical
-data analysis situations anyways. The main pyKLIP code is cross-compatible with both python2.7 and python3.5.
+data analysis situations anyways. We recommend you use python 3 for pyKLIP, but it can be adapted to python 2.7 as well.
 
 * numpy
 * scipy
@@ -29,7 +47,7 @@ right here what the hardware requirements are for your data reduction needs. For
 reduced using ADI+SDI. For broadband polarimetry data from GPI, any laptop can reduce the data.
 
 Install
--------
+^^^^^^^
 
 Due to the continually developing nature of pyKLIP, we recommend you use the current version of the code on
 `Bitbucket <https://bitbucket.org/pyKLIP/pyklip>`_ and keep it updated.

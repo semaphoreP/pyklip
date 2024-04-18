@@ -15,7 +15,7 @@ def gauss2d(x, y, amplitude = 1.0, xo = 0.0, yo = 0.0, sigma_x = 1.0, sigma_y = 
 
 def hat(x, y, radius):
     r2 = x**2+y**2
-    return np.array(r2 <= radius*radius,dtype=np.int)
+    return np.array(r2 <= radius*radius,dtype=int)
 
 def model_exp(x,m,alpha):
     return np.exp(-alpha*x-m)

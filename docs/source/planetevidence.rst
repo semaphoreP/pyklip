@@ -7,7 +7,9 @@ Attribution
 -----------
 
 The PlanetEvidence module has been developed and implemented in pyKLIP by Graça Rocha and Jacob Golomb with contributions from Jason Wang.
-If you use this module please cite the article by Golomb, J., Rocha, G., et al. 2019.
+If you use this module please cite:
+
+ * `Golomb, J., Rocha, G., Meshkat, T., et al. 2021, AJ, 162, 304. <https://ui.adsabs.harvard.edu/abs/2021AJ....162..304G/abstract>`_
 
 Requirements
 ------------

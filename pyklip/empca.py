@@ -125,7 +125,7 @@ def weighted_empca(data, weights=None, niter=25, nvec=5, randseed=1, maxcpus=1, 
     '''
 
     if weights is None:
-        weights = np.ones(data.shape, np.float32)
+        weights = np.ones(data.shape, float)
 
     ##################################################################
     # The following code makes sure that there are two copies each 
@@ -140,20 +140,20 @@ def weighted_empca(data, weights=None, niter=25, nvec=5, randseed=1, maxcpus=1, 
         raise ValueError("'data' and 'weights' must be 2D arrays of the same shape.")
    
     if data.flags['C']:
-        dataC = data.astype(np.float32)
+        dataC = data.astype(float)
         dataF = (dataC.T).copy(order='C')
     elif data.flags['F']:
-        dataC = data.copy(order='C').astype(np.float32)
-        dataF = data.T.astype(np.float32)
+        dataC = data.copy(order='C').astype(float)
+        dataF = data.T.astype(float)
     else:
         raise AttributeError("Attribute 'flags' missing from data.")
     
     if weights.flags['C']:
-        weightsC = weights.astype(np.float32)
+        weightsC = weights.astype(float)
         weightsF = (weightsC.T).copy(order='C')
     elif weights.flags['F']:
-        weightsC = weights.copy(order='C').astype(np.float32)
-        weightsF = weights.T.astype(np.float32)
+        weightsC = weights.copy(order='C').astype(float)
+        weightsF = weights.T.astype(float)
     else:
         raise AttributeError("Attribute 'flags' missing from weights.")
 

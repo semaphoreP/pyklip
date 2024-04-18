@@ -817,7 +817,7 @@ class GPIData(Data):
                     stamp = cleaned[(yarr_spot-int(np.floor(boxw/2.0))):(yarr_spot+int(np.ceil(boxw/2.0))),\
                                     (xarr_spot-int(np.floor(boxw/2.0))):(xarr_spot+int(np.ceil(boxw/2.0)))]
                     # Define coordinates grids for the stamp
-                    stamp_x, stamp_y = np.meshgrid(np.arange(boxw, dtype=np.float32), np.arange(boxw, dtype=np.float32))
+                    stamp_x, stamp_y = np.meshgrid(np.arange(boxw, dtype=float), np.arange(boxw, dtype=float))
                     # Calculate the shift of the sat spot centroid relative to the closest pixel.
                     dx = spotx-xarr_spot
                     dy = spoty-yarr_spot
@@ -932,9 +932,9 @@ class GPIData(Data):
             rad_psf_cube = np.zeros((nl,nx,nx))
             #current_slice = np.zeros((nx,nx))
 
-            stamp_x, stamp_y = np.meshgrid(np.arange(nx, dtype=np.float32), np.arange(nx, dtype=np.float32))
+            stamp_x, stamp_y = np.meshgrid(np.arange(nx, dtype=float), np.arange(nx, dtype=float))
             stamp_r = np.sqrt((stamp_x - nx//2)**2+(stamp_y - nx//2)**2)
-            stamp_x_hd, stamp_y_hd = np.meshgrid(np.arange(nx_hd, dtype=np.float32)/(nx_hd-1)*(nx-1), np.arange(nx_hd, dtype=np.float32)/(nx_hd-1)*(nx-1))
+            stamp_x_hd, stamp_y_hd = np.meshgrid(np.arange(nx_hd, dtype=float)/(nx_hd-1)*(nx-1), np.arange(nx_hd, dtype=float)/(nx_hd-1)*(nx-1))
             for l in range(nl):
                 hd_psf[l,:,:] = ndimage.map_coordinates(self.psfs[l,:,:], [stamp_y_hd, stamp_x_hd])
                 #hd_psf[l,nx/2*k_hd,nx/2*k_hd] = 0. # center
@@ -1580,7 +1580,7 @@ def rescale_wvs(exthdrs, wvs, refwv=None, skipslices=None, bad_sat_spots=None):
         wv_indicies = np.delete(wv_indicies, skipslices)
     sats = np.array([[[h['SATS{0}_{1}'.format(i,j)].split() for i in wv_indicies]
                       for j in range(0,4)] 
-                     for h in exthdrs], dtype=np.float)
+                     for h in exthdrs], dtype=float)
     sats = sats.mean(axis=0)
     pairs = [(0,3), (1,2)]
     separations = np.mean([0.5*np.sqrt(np.diff(sats[p,:,0], axis=0)[0]**2 + np.diff(sats[p,:,1], axis=0)[0]**2) 

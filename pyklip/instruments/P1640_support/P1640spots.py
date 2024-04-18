@@ -30,7 +30,7 @@ class P1640params:
     num_spots = 4
     refchan = 26
     nchan = 32 # can be overridden by cube
-    channels = np.arange(32, dtype=np.int) # can be overridden by cube
+    channels = np.arange(32, dtype=int) # can be overridden by cube
     wlsol = np.linspace(969, 1797, 32)*1e-3 # used for estimating scaling
     aperture_refchan = 3.5 # aperture size in the reference channel
 P1640params.reflambda = P1640params.wlsol[P1640params.refchan]
@@ -69,7 +69,7 @@ def make_mask_circle(img_shape, center, R):
     Returns:
         mask: a masked array of shape img_shape
     """
-    mask = np.zeros(shape=img_shape, dtype=np.int)
+    mask = np.zeros(shape=img_shape, dtype=int)
     centered_grid = get_centered_grid(img_shape, center)
     rad_grid = np.linalg.norm(centered_grid, axis=0)
     mask[rad_grid <= R] = 1
@@ -100,7 +100,7 @@ def make_mask_half_img(img_shape, center, angle):
     """
     if type(angle) != units.quantity.Quantity:
         angle = angle*units.degree
-    mask = np.zeros(shape=img_shape, dtype=np.int)
+    mask = np.zeros(shape=img_shape, dtype=int)
     centered_grid = get_centered_grid(img_shape, center)
     rad_grid = np.linalg.norm(centered_grid, axis=0)
     ang_grid = np.arctan2(centered_grid[0], centered_grid[1]) * units.radian
@@ -483,7 +483,7 @@ def get_initial_spot_guesses(cube, rotated_spots=False):
     """
     """
     nchan = cube.shape[0]
-    channels = np.arange(nchan, dtype=np.int)
+    channels = np.arange(nchan, dtype=int)
     img_shape = cube.shape[1:]
     init_centers = img_shape*np.ones((nchan, 2))/2
 
@@ -548,7 +548,7 @@ def get_single_cube_spot_positions(cube, rotated_spots=False):
     #################################
     # some unavoidable initializations
     nchan = cube.shape[0]
-    channels = np.arange(nchan, dtype=np.int)
+    channels = np.arange(nchan, dtype=int)
     img_shape = cube.shape[1:]
     init_centers = img_shape*np.ones((nchan, 2))/2
     spot_masks = make_mask_grid_spots(img_shape, init_centers, rotated_spots=rotated_spots)

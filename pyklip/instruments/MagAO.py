@@ -418,7 +418,7 @@ def _magao_process_file(self, filepath, highpass=False, pool = None):
         center = [[(datasize-1)/2, (datasize-1)/2]]
         
         dims = cube.shape
-        x, y = np.meshgrid(np.arange(dims[1], dtype=np.float32), np.arange(dims[0], dtype=np.float32))
+        x, y = np.meshgrid(np.arange(dims[1], dtype=float), np.arange(dims[0], dtype=float))
 
         #not really parang, but north up angle, which is the parallactic angle + the angle of the rotator+90
         parang = [(float(header['ROTOFF'])+90)]

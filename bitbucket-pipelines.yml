@@ -7,6 +7,9 @@ image: continuumio/anaconda3
 options:
   max-time: 20 # configure default 20 minute timeout
 
+clone:
+  lfs: true
+
 pipelines:
   default:
     - step:
@@ -35,8 +38,7 @@ pipelines:
           - apt-get install -y gcc
           - pip install photutils
 
-
           #Coverage and Coverall hooking
-          - coverage run --source ./pyklip -m py.test
+          - coverage run --source ./pyklip -m pytest
           - coverage combine
           - COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN_2 coveralls

@@ -3,6 +3,14 @@
 Release Notes
 ==============
 
+Version 2.7
+ * Added NMF data imputation functionality and bugfixes in NMF implementation (Bin Ren)
+ * Added detailed attribution guidance in docs (Jason Wang)
+ * Add ability to skip derotation step after KLIP. See `skip_derot` flag in ``parallelized.klip_dataset`` (Jason Wang)
+ * Workflow updates to the doc and testing framework (Jason Wang)
+ * Replace deprecated numpy datatypes and other deprecated syntax (Jason Wang)
+ * pip install now uses requirements.txt for dependencies (Jason Wang)
+
 Version 2.6
  * JWST module to support both NIRCAM and MIRI coronagraphy. See SpaceKLIP for pipeline capabilities. (Aarynn Carter, Jens Kammerer)
  * New CHARIS instrument tutorial (Minghan Chen)

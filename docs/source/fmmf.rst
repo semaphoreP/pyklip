@@ -6,6 +6,12 @@ Forward Model Matched Filter (FMMF)
 This tutorial will provide the necessary steps to run the Forward Model Matched Filter (FMMF)
 that is described in `Ruffio et al. (2016) <https://arxiv.org/pdf/1705.05477.pdf>`_.
 
+Attribution
+-----------
+If you use this feature, please cite:
+
+ * `Ruffio, J.-B., Macintosh, B., Wang, J. J., et al. 2017, ApJ, 842, 14. <https://ui.adsabs.harvard.edu/abs/2017ApJ...842...14R/abstract>`_
+
 Why FMMF?
 -----------------
 

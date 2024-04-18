@@ -19,6 +19,17 @@ Since then, it has be extended to also do maximum likelihood fitting in a freque
 obtain uncertainties. A frequentist framework is appropriate when astrometric calibration uncertainties are 
 also derived in a frequentist procedure. 
 
+Attribution
+-----------
+If you use this feature, please cite:
+
+ * `Wang, J. J., Graham, J. R., Pueyo, L., et al. 2016, AJ, 152, 97. <https://ui.adsabs.harvard.edu/abs/2016AJ....152...97W/abstract>`_
+ * `Pueyo, L. 2016, ApJ, 824, 117. <https://ui.adsabs.harvard.edu/abs/2016ApJ...824..117P/abstract>`_
+
+If you used the MCMC sampling aspects of this feature, please cite:
+
+ * `Foreman-Mackey, D., Hogg, D. W., Lang, D., et al. 2013, PASP, 125, 306. <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_
+
 Requirements
 ------------
 You need the following pieces of data to forward model the data. (If you have a model and some data to fit to, you can

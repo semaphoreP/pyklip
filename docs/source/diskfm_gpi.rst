@@ -5,6 +5,12 @@ Disk Foward Modelling (DiskFM)
 This tutorial presents how to use the forward modelling routines specific to disk modelling
 and disk parameter retrieval.
 
+Attribution
+-----------
+If you use this feature, please cite:
+
+ * `Mazoyer, J., Arriaga, P., Hom, J., et al. 2020, Proc. SPIE, 11447, 1144759. <https://ui.adsabs.harvard.edu/abs/2020SPIE11447E..59M/abstract>`_
+
 Why DiskFM?
 --------------------------
 As noted in `Pueyo (2016) <http://arxiv.org/abs/1604.06097>`_, "*in practice Forward

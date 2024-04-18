@@ -4,11 +4,8 @@ import numpy as np
 from scipy import integrate
 from scipy.interpolate import interp1d
 import astropy.io.fits as pyfits
-import platform
-import scipy.ndimage as ndimage
 from scipy.optimize import leastsq
 from scipy.optimize import minimize
-import glob
 import os
 import csv
 

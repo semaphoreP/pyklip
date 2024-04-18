@@ -221,7 +221,7 @@ def _align_and_scale(iterable_arg):
             ref_wv_iter: a tuple of two elements. First is the index of the reference wavelength (between 0 and 36).
                          second is the value of the reference wavelength. This is to determine scaling
             ref_center: a two-element array with the [x,y] center position to align all the images to.
-            dtype: Should be equal to float or np.float32. Define the data type of the arrays.
+            dtype: Should be equal to float. Define the data type of the arrays.
                     float is actually the default double.
 
     Returns:
@@ -1410,7 +1410,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
                  numbasis=None, numthreads=None, minrot=0, calibrate_flux=False, aligned_center=None,
                  annuli_spacing="constant", maxnumbasis=None, corr_smooth=1, spectrum=None, psf_library=None, 
                  highpass=False, lite=False, save_aligned = False, restored_aligned = None, save_ints = False, dtype=None, algo='klip',
-                 time_collapse="mean", wv_collapse='mean', verbose = True):
+                 skip_derot=False, time_collapse="mean", wv_collapse='mean', verbose = True):
     """
     run klip on a dataset class outputted by an implementation of Instrument.Data
 
@@ -1452,6 +1452,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         				(usually restored_aligned = dataset.aligned_and_scaled)
         dtype:          data type of the arrays. Should be either ctypes.c_float(default) or ctypes.c_double
         algo (str):     algorithm to use ('klip', 'nmf', 'empca', 'none'). None will run no PSF subtraction. 
+        skip_derot:     if True, skips derotating the images. **Note, the saved time-collapsed cubes may not make sense**
         time_collapse:  how to collapse the data in time. Currently support: "mean", "weighted-mean", 'median', "weighted-median"
         wv_collapse:    how to collapse the data in wavelength. Currently support: 'median', 'mean', 'trimmed-mean'
         verbose (bool): if True, print warning messages during KLIP process.
@@ -1502,10 +1503,11 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
             raise ValueError("You need to pass in a psf_library if you want to run RDI")
         if psf_library.dataset is not dataset:
             raise ValueError("The PSF Library is not prepared for this dataset. Run psf_library.prepare_library()")
+        if highpass != psf_library.highpass:
+            raise ValueError("Highpass filter for the PSF Library and the dataset need to be the same")
         if aligned_center is not None:
             if not np.array_equal(aligned_center, psf_library.aligned_center): 
                 raise ValueError("The images need to be aligned to the same center as the RDI Library")
-
         else:
             aligned_center = psf_library.aligned_center
         # good rdi_library
@@ -1553,6 +1555,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
                 fourier_sigma_size = (dataset.input.shape[1]/(highpass)) / (2*np.sqrt(2*np.log(2)))
                 dataset.input = high_pass_filter_imgs(dataset.input, numthreads=numthreads, filtersize=fourier_sigma_size)
 
+
     # if no outputdir specified, then current working directory (don't want to write to '/'!)
     if outputdir == "":
         outputdir = "."
@@ -1586,11 +1589,11 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
     maxbasis_str = maxnumbasis if maxnumbasis is not None else np.max(numbasis) # prefer to use maxnumbasis if possible
     klipparams = "mode={mode},annuli={annuli},subsect={subsections},minmove={movement}," \
                  "numbasis={numbasis}/{maxbasis},minrot={minrot},calibflux={calibrate_flux},spectrum={spectrum}," \
-                 "highpass={highpass}, time_collapse={weighted}".format(mode=mode, annuli=annuli, 
+                 "highpass={highpass}, time_collapse={weighted}, skip_derot={skip_derot}".format(mode=mode, annuli=annuli, 
                                               subsections=subsections, movement=movement,
                                               numbasis="{numbasis}", maxbasis=maxbasis_str, minrot=minrot,
                                               calibrate_flux=calibrate_flux, spectrum=spectrum_name, highpass=highpass,
-                                              weighted=time_collapse)
+                                              weighted=time_collapse, skip_derot=skip_derot)
     dataset.klipparams = klipparams
 
     # set all the klip_parallelized.py args here
@@ -1717,6 +1720,10 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
     # we need to duplicate PAs and centers for the different KL mode cutoffs we supplied
     flattend_parangs = np.tile(dataset.PAs, oldshape[0])
     flattened_centers = np.tile(dataset.output_centers.reshape(oldshape[1]*2), oldshape[0]).reshape(oldshape[1]*oldshape[0],2)
+
+    # if skipping derotating, set all rotations to 0
+    if skip_derot:
+        flattend_parangs[:] = 0
 
     # align center to center of image if not specified
     # note that klip_parallelized aligns everything to the mean of the input centers, whereas now we will re align it

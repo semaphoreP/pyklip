@@ -4,4 +4,4 @@ astropy
 matplotlib
 emcee
 corner
-docutils<0.17
+astroquery

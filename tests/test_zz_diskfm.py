@@ -36,8 +36,8 @@ def make_phony_disk(dim):
     phony_disk = np.zeros((dim, dim))
     PA_rad = 0.4712388980  # 27 deg
 
-    x = np.arange(dim, dtype=np.float64)[None, :] - dim // 2
-    y = np.arange(dim, dtype=np.float64)[:, None] - dim // 2
+    x = np.arange(dim, dtype=float)[None, :] - dim // 2
+    y = np.arange(dim, dtype=float)[:, None] - dim // 2
 
     x1 = x * np.cos(PA_rad) + y * np.sin(PA_rad)
     y1 = -x * np.sin(PA_rad) + y * np.cos(PA_rad)

@@ -9,6 +9,12 @@ a spectrum, described in
 to account the effect of the companion signal in the reference library
 when measuring its spectrum.
 
+Attribution
+-----------
+If you use this feature, please cite:
+
+ * `Greenbaum, A. Z., Pueyo, L., Ruffio, J.-B., et al. 2018, AJ, 155, 226. <https://ui.adsabs.harvard.edu/abs/2018AJ....155..226G/abstract>`_
+
 Set up:
 ---------
 
