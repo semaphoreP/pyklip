@@ -217,7 +217,22 @@ class JWSTData(Data):
             if data.ndim != 3:
                 raise UserWarning('Requires 2D/3D data cube')
             NINTS = data.shape[0]
-            pix_scale = np.sqrt(shead['PIXAR_A2']) 
+            try:
+                pix_scale = np.sqrt(shead['PIXAR_A2'])
+            except:
+                import pysiaf
+                siaf_nrc = pysiaf.Siaf('NIRCam')
+                siaf_nis = pysiaf.Siaf('NIRISS')
+                siaf_mir = pysiaf.Siaf('MIRI')
+                if phead['INSTRUME'] == 'NIRCAM':
+                    ap = siaf_nrc[phead['APERNAME']]
+                elif phead['INSTRUME'] == 'NIRISS':
+                    ap = siaf_nis[phead['APERNAME']]
+                elif phead['INSTRUME'] == 'MIRI':
+                    ap = siaf_mir[phead['APERNAME']]
+                else:
+                    raise UserWarning('Data originates from unknown JWST instrument')
+                pix_scale = (ap.XSciScale + ap.YSciScale) / 2.
             PIXSCALE += [pix_scale] #Assume square pixels
 
             # Nan out non-science pixels.
@@ -339,7 +354,22 @@ class JWSTData(Data):
             if data.ndim != 3:
                 raise UserWarning('Requires 2D/3D data cube')
             NINTS = data.shape[0]
-            pix_scale = np.sqrt(shead['PIXAR_A2']) 
+            try:
+                pix_scale = np.sqrt(shead['PIXAR_A2'])
+            except:
+                import pysiaf
+                siaf_nrc = pysiaf.Siaf('NIRCam')
+                siaf_nis = pysiaf.Siaf('NIRISS')
+                siaf_mir = pysiaf.Siaf('MIRI')
+                if phead['INSTRUME'] == 'NIRCAM':
+                    ap = siaf_nrc[phead['APERNAME']]
+                elif phead['INSTRUME'] == 'NIRISS':
+                    ap = siaf_nis[phead['APERNAME']]
+                elif phead['INSTRUME'] == 'MIRI':
+                    ap = siaf_mir[phead['APERNAME']]
+                else:
+                    raise UserWarning('Data originates from unknown JWST instrument')
+                pix_scale = (ap.XSciScale + ap.YSciScale) / 2.
             
             # Nan out non-science pixels.
             data[pxdq & 512 == 512] = np.nan
