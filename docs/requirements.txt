@@ -1,0 +1,16 @@
+numpy
+scipy
+astropy
+matplotlib
+emcee
+corner
+NonnegMFPy
+scikit-image
+astroquery
+psutil
+pandas
+photutils
+h5py
+docutils
+pyklip
+sphinx_rtd_theme
