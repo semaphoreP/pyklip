@@ -50,26 +50,31 @@ class JWSTData(Data):
 
         # Load NIRCam, NIRISS, and MIRI filters from the SVO Filter Profile Service.
         # http://svo2.cab.inta-csic.es/theory/fps/
-        self.wave_nircam = {}
-        filter_list = SvoFps.get_filter_list(facility='JWST', instrument='NIRCAM')
-        for i in range(len(filter_list)):
-            name = filter_list['filterID'][i]
-            name = name[name.rfind('.') + 1:]
-            self.wave_nircam[name] = filter_list['WavelengthMean'][i] / 1e4  # micron
-        self.wave_niriss = {}
-        filter_list = SvoFps.get_filter_list(facility='JWST', instrument='NIRISS')
-        for i in range(len(filter_list)):
-            name = filter_list['filterID'][i]
-            name = name[name.rfind('.') + 1:]
-            self.wave_niriss[name] = filter_list['WavelengthMean'][i] / 1e4  # micron
-        self.wave_miri = {}
-        filter_list = SvoFps.get_filter_list(facility='JWST', instrument='MIRI')
-        for i in range(len(filter_list)):
-            name = filter_list['filterID'][i]
-            name = name[name.rfind('.') + 1:]
-            self.wave_miri[name] = filter_list['WavelengthMean'][i] / 1e4  # micron
-        self.wave_miri['FND'] = 13.  # micron
-        del filter_list
+        try:
+            self.wave_nircam = {}
+            filter_list = SvoFps.get_filter_list(facility='JWST', instrument='NIRCAM')
+            for i in range(len(filter_list)):
+                name = filter_list['filterID'][i]
+                name = name[name.rfind('.') + 1:]
+                self.wave_nircam[name] = filter_list['WavelengthMean'][i] / 1e4  # micron
+            self.wave_niriss = {}
+            filter_list = SvoFps.get_filter_list(facility='JWST', instrument='NIRISS')
+            for i in range(len(filter_list)):
+                name = filter_list['filterID'][i]
+                name = name[name.rfind('.') + 1:]
+                self.wave_niriss[name] = filter_list['WavelengthMean'][i] / 1e4  # micron
+            self.wave_miri = {}
+            filter_list = SvoFps.get_filter_list(facility='JWST', instrument='MIRI')
+            for i in range(len(filter_list)):
+                name = filter_list['filterID'][i]
+                name = name[name.rfind('.') + 1:]
+                self.wave_miri[name] = filter_list['WavelengthMean'][i] / 1e4  # micron
+            self.wave_miri['FND'] = 13.  # micron
+            del filter_list
+        except:
+            self.wave_nircam = {'F070W': 0.70883009369996, 'F090W': 0.9083395270085901, 'F115W': 1.1623884998948, 'F140M': 1.4074468174513, 'F150W': 1.5104226607667, 'F162M': 1.6296590457303, 'F164N': 1.6445953951204, 'F150W2': 1.7865566963247002, 'F182M': 1.8494295108627001, 'F187N': 1.8739646084758, 'F200W': 2.0028146492527, 'F210M': 2.0982217923787, 'F212N': 2.1213973774212, 'F250M': 2.5049391569476, 'F277W': 2.7844642741698, 'F300M': 2.9940444469417997, 'F323N': 3.2369286671263997, 'F322W2': 3.3334921422542, 'F335M': 3.3675235591391, 'F356W': 3.59344889657, 'F360M': 3.6298097588999, 'F405N': 4.0517390303609, 'F410M': 4.0886543870603, 'F430M': 4.2829393603083, 'F444W': 4.4393515120525, 'F460M': 4.6315567661685, 'F466N': 4.6545305761355, 'F470N': 4.7078819812928, 'F480M': 4.821327199619}
+            self.wave_niriss = {'F090W': 0.906674387194, 'F115W': 1.158404916236, 'F140M': 1.4072666486598, 'F150W': 1.5081924100011, 'F158M': 1.5900060855592, 'F200W': 1.9982485149336, 'F277W': 2.8000445712921, 'F356W': 3.6251849589051, 'F380M': 3.8298836750814997, 'F430M': 4.2869506763817995, 'F444W': 4.4718192466087, 'F480M': 4.8195695725322}
+            self.wave_miri = {'F560W': 5.6651275394955, 'F770W': 7.7111482022015, 'F1000W': 9.9981091216778, 'F1065C': 10.568152260847999, 'F1140C': 11.315651557554, 'F1130W': 11.315944161095, 'F1280W': 12.873834483415001, 'F1500W': 15.146907293049999, 'F1550C': 15.521965212798, 'F1800W': 18.050830116808, 'F2100W': 20.937318619694, 'F2300C': 22.76304870809, 'F2550W': 25.49941956148, 'FND': 13.0}
 
         # Optional variables
         self.center_include_offset = center_include_offset
@@ -217,22 +222,7 @@ class JWSTData(Data):
             if data.ndim != 3:
                 raise UserWarning('Requires 2D/3D data cube')
             NINTS = data.shape[0]
-            try:
-                pix_scale = np.sqrt(shead['PIXAR_A2'])
-            except:
-                import pysiaf
-                siaf_nrc = pysiaf.Siaf('NIRCam')
-                siaf_nis = pysiaf.Siaf('NIRISS')
-                siaf_mir = pysiaf.Siaf('MIRI')
-                if phead['INSTRUME'] == 'NIRCAM':
-                    ap = siaf_nrc[phead['APERNAME']]
-                elif phead['INSTRUME'] == 'NIRISS':
-                    ap = siaf_nis[phead['APERNAME']]
-                elif phead['INSTRUME'] == 'MIRI':
-                    ap = siaf_mir[phead['APERNAME']]
-                else:
-                    raise UserWarning('Data originates from unknown JWST instrument')
-                pix_scale = (ap.XSciScale + ap.YSciScale) / 2.
+            pix_scale = np.sqrt(shead['PIXAR_A2'])
             PIXSCALE += [pix_scale] #Assume square pixels
 
             # Nan out non-science pixels.
@@ -354,22 +344,7 @@ class JWSTData(Data):
             if data.ndim != 3:
                 raise UserWarning('Requires 2D/3D data cube')
             NINTS = data.shape[0]
-            try:
-                pix_scale = np.sqrt(shead['PIXAR_A2'])
-            except:
-                import pysiaf
-                siaf_nrc = pysiaf.Siaf('NIRCam')
-                siaf_nis = pysiaf.Siaf('NIRISS')
-                siaf_mir = pysiaf.Siaf('MIRI')
-                if phead['INSTRUME'] == 'NIRCAM':
-                    ap = siaf_nrc[phead['APERNAME']]
-                elif phead['INSTRUME'] == 'NIRISS':
-                    ap = siaf_nis[phead['APERNAME']]
-                elif phead['INSTRUME'] == 'MIRI':
-                    ap = siaf_mir[phead['APERNAME']]
-                else:
-                    raise UserWarning('Data originates from unknown JWST instrument')
-                pix_scale = (ap.XSciScale + ap.YSciScale) / 2.
+            pix_scale = np.sqrt(shead['PIXAR_A2'])
             
             # Nan out non-science pixels.
             data[pxdq & 512 == 512] = np.nan
