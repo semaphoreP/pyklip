@@ -26,7 +26,7 @@ except ImportError:
     mkl_exists = False
 
 # Turns parallelism off for debugging purposes
-debug = True
+debug = False
 
 def find_id_nearest(array, value):
     """
