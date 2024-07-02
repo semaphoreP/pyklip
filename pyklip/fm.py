@@ -1507,7 +1507,10 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     #note that numpy.cov normalizes by p-1 to get the NxN covariance matrix
     #we have to correct for that in the klip.klip_math routine when consturcting the KL
     #vectors since that's not part of the equation in the KLIP paper
-    covar_psfs = np.cov(ref_psfs_mean_sub)
+    if ref_psfs_mean_sub.shape[0] == 1:
+        covar_psfs = np.array([[np.cov(ref_psfs_mean_sub)]])
+    else:
+        covar_psfs = np.cov(ref_psfs_mean_sub)
 
     if corr_smooth > 0:
         # calcualte the correlation matrix, with possible smoothing  
@@ -1539,6 +1542,8 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
             # smoothing could have caused some ref images to have all 0s
             # which would give them correlation matrix entries of NaN
             # 0 them out for now.
+            if len(ref_psfs_smoothed) == 1:
+                corr_psfs = np.array([corr_psfs])
             corr_psfs[np.where(np.isnan(corr_psfs))] = 0
             
     else:
