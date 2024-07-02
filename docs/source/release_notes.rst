@@ -3,6 +3,10 @@
 Release Notes
 ==============
 
+Version 2.7.1
+ * Hotfix to address scipy deprecation of keyword in `eigh()` functio (Jason Wang, Jens Kammerer)
+ * PSF library is consistently high pass filtered with dataset (Max Millar-Blanchaer)
+
 Version 2.7
  * Added NMF data imputation functionality and bugfixes in NMF implementation (Bin Ren)
  * Added detailed attribution guidance in docs (Jason Wang)

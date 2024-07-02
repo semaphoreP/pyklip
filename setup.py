@@ -11,7 +11,7 @@ def get_requires():
 
 setup(
     name='pyklip',
-    version='2.7',
+    version='2.7.1',
     description='pyKLIP: PSF Subtraction for Exoplanets and Disks',
     long_description=long_description,
     long_description_content_type="text/markdown",

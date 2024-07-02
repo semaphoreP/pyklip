@@ -268,16 +268,6 @@ class FMPlanetPSF(NoFM):
                     psf_func(x_vec_stamp_centered,y_vec_stamp_centered).transpose()
             
             # if specified, make field dependent PSF correction
-            # import matplotlib.pyplot as plt
-            # fig, axs = plt.subplots(nrows=1, ncols=2)
-            # axs[0].imshow(whiteboard)
-            # print(self.sep * np.cos(np.radians(90. - sign*self.pa - pa)))
-            # print(self.sep * np.sin(np.radians(90. - sign*self.pa - pa)))
-            # print(90. - sign*self.pa - pa)
-            # print(pa)
-            # print(self.pa)
-            # print('----')
-            # exit()
             if self.field_dependent_correction is not None:
                 # find distance from center in x and y dimensions
                 dx = x_grid[stamp_len, stamp_width]
@@ -286,9 +276,6 @@ class FMPlanetPSF(NoFM):
                 miny = min(y_vec_stamp_centered, key=abs)
                 whiteboard[stamp_len, stamp_width] = \
                         self.field_dependent_correction(whiteboard[stamp_len, stamp_width], dx, dy)
-            # axs[1].imshow(whiteboard)
-            # plt.show()
-            # exit()
             # write model img to output (segment is collapsed in x/y so need to reshape)
             whiteboard.shape = [input_img_shape[0] * input_img_shape[1]]
             segment_with_model = copy(whiteboard[section_ind])

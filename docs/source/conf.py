@@ -65,7 +65,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pyKLIP'
-copyright = u'2020, pyKLIP Developers'
+copyright = u'2024, pyKLIP Developers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

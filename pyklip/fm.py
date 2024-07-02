@@ -90,7 +90,7 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
     tot_basis = covar_psfs.shape[0]
 
     if numbasis[0] is None:
-        evals, evecs = la.eigh(covar_psfs, eigvals = (tot_basis-np.min([100,tot_basis-1]), tot_basis-1))
+        evals, evecs = la.eigh(covar_psfs, subset_by_index = (tot_basis-np.min([100,tot_basis-1]), tot_basis-1))
         evals = np.copy(evals[::-1])
         evecs = np.copy(evecs[:,::-1])
         # import matplotlib.pyplot as plt
@@ -105,7 +105,7 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
         max_basis = np.max(numbasis) + 1
 
         # calculate eigenvectors/values of covariance matrix
-        evals, evecs = la.eigh(covar_psfs, eigvals = (int(tot_basis-max_basis), int(tot_basis-1)))
+        evals, evecs = la.eigh(covar_psfs, subset_by_index = (int(tot_basis-max_basis), int(tot_basis-1)))
         evals = np.copy(evals[::-1])
         evecs = np.copy(evecs[:,::-1])
 

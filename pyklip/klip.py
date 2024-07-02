@@ -134,7 +134,7 @@ def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, retu
     max_basis = np.max(numbasis) + 1  # maximum number of eigenvectors/KL basis we actually need to use/calculate
 
     # calculate eigenvalues and eigenvectors of covariance matrix, but only the ones we need (up to max basis)
-    evals, evecs = la.eigh(covar_psfs, eigvals=(tot_basis-max_basis, tot_basis-1))
+    evals, evecs = la.eigh(covar_psfs, subset_by_index=(tot_basis-max_basis, tot_basis-1))
 
     # check if there are negative eignevalues as they will cause NaNs later that we have to remove
     # the eigenvalues are ordered smallest to largest
