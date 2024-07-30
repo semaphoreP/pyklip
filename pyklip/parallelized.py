@@ -382,7 +382,7 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
         corr_smooth (float): size of sigma of Gaussian smoothing kernel (in pixels) when computing most correlated PSFs. If 0, no smoothing
         lite: if True, use low memory footprint mode
         dtype: data type of the arrays. Should be either ctypes.c_float(default) or ctypes.c_double
-        algo (str): algorithm to use ('klip', 'nmf', 'empca')
+        algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         verbose (bool): if True, prints out warnings
 
     Returns:
@@ -447,7 +447,7 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
     
     #do the same for the reference PSFs
     #playing some tricks to vectorize the subtraction of the mean for each row
-    if algo.lower() == 'nmf': # do not do mean subtraction for NMF
+    if algo.lower() == 'nmf' or 'nmf_jax': # do not do mean subtraction for NMF
         ref_psfs_mean_sub = ref_psfs
     else:
         ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
@@ -689,7 +689,7 @@ def _klip_section_multifile_perfile(img_num, section_ind, ref_psfs, covar,  corr
 
         #subctract the mean and remove the Nans from the RDI PSFs before measuring the covariance.
         # this was already done in _klip_section_multifile for the other PSFs)
-        if algo.lower() == 'nmf': # do not do mean subtraction for NMF
+        if algo.lower() == 'nmf' or 'nmf_jax': # do not do mean subtraction for NMF
             rdi_psfs_selected = rdi_psfs_selected
         else:
             rdi_psfs_selected = rdi_psfs_selected - np.nanmean(rdi_psfs_selected, axis=1)[:, None]
@@ -727,8 +727,10 @@ def _klip_section_multifile_perfile(img_num, section_ind, ref_psfs, covar,  corr
             klipped = klip.klip_math(aligned_imgs[img_num, section_ind[0]], ref_psfs_selected, numbasis, covar_psfs=covar_files)
         elif algo.lower() == 'nmf':
             import pyklip.nmf_imaging as nmf_imaging
-            klipped = nmf_imaging.nmf_math(aligned_imgs[img_num, section_ind].ravel(), ref_psfs_selected, componentNum=numbasis[0])
-            klipped = klipped.reshape(klipped.shape[0], 1)
+            klipped = nmf_imaging.nmf_math(aligned_imgs[img_num, section_ind].ravel(), ref_psfs_selected, componentNum=numbasis)
+        elif algo.lower() == 'nmf_jax':
+            import pyklip.nmf_imaging_JAX as nmf_imaging_jax
+            klipped = nmf_imaging_jax.nmf_func(aligned_imgs[img_num, section_ind].ravel(), ref_psfs_selected, componentNum=numbasis)
         elif algo.lower() == "none":
             klipped = np.array([aligned_imgs[img_num, section_ind[0]] for _ in range(len(numbasis))]) # duplicate by requested numbasis
             klipped = klipped.T # retrun in shape (p, b) as expected
@@ -899,7 +901,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
                     if smaller than 10%, (hard coded quantity), then use it for reference PSF
         kwargs: in case you pass it stuff that we don't use in the lite version
         dtype: data type of the arrays. Should be either ctypes.c_float (default) or ctypes.c_double
-        algo (str): algorithm to use ('klip', 'nmf', 'empca')
+        algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
 
     Returns:
@@ -1150,7 +1152,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         restore_aligned: The aligned and scaled images from a previous run of klip_dataset
         				(usually restored_aligned = dataset.aligned_and_scaled)
         dtype: data type of the arrays. Should be either ctypes.c_float(default) or ctypes.c_double
-        algo (str): algorithm to use ('klip', 'nmf', 'empca')
+        algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
 
     Returns:
@@ -1182,8 +1184,9 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
     elif algo.lower() == 'nmf':
         # check to see the correct nmf packages are installed 
         import pyklip.nmf_imaging as nmf_imaging
-        if np.size(numbasis) > 1:
-            raise ValueError("NMF can only be run with one basis")
+    elif algo.lower() == 'nmf_jax':
+        # check to see the correct nmf_jax packages are installed 
+        import pyklip.nmf_imaging_JAX as nmf_imaging_jax
     elif algo.lower() == 'none':
         pass
     else:
@@ -1451,7 +1454,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         restore_aligned: The aligned and scaled images from a previous run of klip_dataset
         				(usually restored_aligned = dataset.aligned_and_scaled)
         dtype:          data type of the arrays. Should be either ctypes.c_float(default) or ctypes.c_double
-        algo (str):     algorithm to use ('klip', 'nmf', 'empca', 'none'). None will run no PSF subtraction. 
+        algo (str):     algorithm to use ('klip', 'nmf', 'empca', 'nmf_jax','none'). None will run no PSF subtraction. 
         skip_derot:     if True, skips derotating the images. **Note, the saved time-collapsed cubes may not make sense**
         time_collapse:  how to collapse the data in time. Currently support: "mean", "weighted-mean", 'median', "weighted-median"
         wv_collapse:    how to collapse the data in wavelength. Currently support: 'median', 'mean', 'trimmed-mean'
