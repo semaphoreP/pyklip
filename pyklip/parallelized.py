@@ -1186,7 +1186,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         import pyklip.nmf_imaging as nmf_imaging
     elif algo.lower() == 'nmf_jax':
         # check to see the correct nmf_jax packages are installed 
-        import pyklip.nmf_imaging_JAX as nmf_imaging_jax
+        try:
+            import pyklip.nmf_imaging_JAX as nmf_imaging_jax
+        except:
+            raise ValueError("Failed to import NMF JAX. Please ensure that JAX is properly installed.")
     elif algo.lower() == 'none':
         pass
     else:
@@ -1642,7 +1645,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         # construct the output wcs info, but it's currently just a copy of the input one until we rotate it
         dataset.output_wcs = np.array([w.deepcopy() if w is not None else None for w in dataset.wcs])
 
-    # For ADI only datasets, can run KLIP on each wavelenght separately
+    # For ADI only datasets, can run KLIP on each wavelength separately
     else:
         # set up output, output centers, and output wcs variables but they are the same as the input for now
         dataset.output_centers = np.copy(dataset.centers)
