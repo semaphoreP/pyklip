@@ -1,7 +1,7 @@
 # This code is the nmf_imaging.py adjusted for pyKLIP at https://bitbucket.org/pyKLIP/pyklip/src/master/pyklip/nmf_imaging.py
 # Another version is kept at https://github.com/seawander/nmf_imaging/blob/master/nmf_imaging_for_pyKLIP.py
 
-from NonnegMFPy import nmf
+from pyklip.NonnegMFPy import nmf
 import numpy as np
 import os
 from astropy.io import fits

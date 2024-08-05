@@ -1189,7 +1189,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         try:
             import pyklip.nmf_imaging_JAX as nmf_imaging_jax
         except:
-            raise ValueError("Failed to import NMF JAX. Please ensure that JAX is properly installed.")
+            raise ImportError("Failed to import NMF JAX. Please ensure that JAX is properly installed.")
     elif algo.lower() == 'none':
         pass
     else:
