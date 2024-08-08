@@ -720,6 +720,8 @@ def nmf_func(trg, refs, trg_err = None, refs_err = None, mask = None, componentN
         refs_err = np.ones(refs.shape)
     if trg_err is None:
         trg_err = np.ones(trg.shape)
+    if mask is not None:
+        mask = mask.T
 
     maxcomponents = max(componentNum)
 

@@ -332,6 +332,8 @@ def nmf_math(sci, ref_psfs, sci_err = None, ref_psfs_err = None, componentNum = 
         ref_psfs_err = np.ones(ref_psfs.shape)
     if sci_err is None:
         sci_err = np.ones(sci.shape)
+    if ignore_mask is not None:
+        ignore_mask = ignore_mask.T
     
     maxcomponents = max(componentNum)
 
