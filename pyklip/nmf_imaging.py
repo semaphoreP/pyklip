@@ -1,7 +1,7 @@
 # This code is the nmf_imaging.py adjusted for pyKLIP at https://bitbucket.org/pyKLIP/pyklip/src/master/pyklip/nmf_imaging.py
 # Another version is kept at https://github.com/seawander/nmf_imaging/blob/master/nmf_imaging_for_pyKLIP.py
 
-from NonnegMFPy import nmf
+from pyklip.NonnegMFPy import nmf
 import numpy as np
 import os
 from astropy.io import fits
@@ -82,7 +82,7 @@ def NMFcomponents(ref, ref_err = None, n_components = None, maxiters = 1e3, oneB
     ref_err_columnized = data_masked_only(ref_err, mask = mask_mark)
     mask_columnized = data_masked_only(ignore_mask, mask = mask_mark)
     mask_columnized_boolean = np.array(data_masked_only(ignore_mask, mask = mask_mark), dtype = bool)
-    ref_columnized[mask_columnized == 0] = 0 # assign 0 to ignored values, should not impact the final result given the usage of mask_columnized_boolean
+    #ref_columnized[mask_columnized == 0] = 0 # assign 0 to ignored values, should not impact the final result given the usage of mask_columnized_boolean
     ref_err_columnized[mask_columnized == 0] = np.nanmax(ref_err_columnized) # assign max uncertainty to ignored values, should not impact the final result
 
     
@@ -208,7 +208,11 @@ def NMFmodelling(trg, components, n_components = None, mask_components = None, m
         
     if trg_err is None:
         trg_err = np.sqrt(trg)
-
+    
+    if mask_components is not None:
+        mask_components = np.nansum(mask_components, axis = 1)
+        mask_components[mask_components != 0] = 1   
+    
     if mask_components is None:
         mask_components = np.ones(trg.shape)
         mask_components[np.where(np.isnan(components[0]))] = 0
@@ -299,7 +303,7 @@ def NMFbff(trg, model, fracs = None):
         std_infos[i] = std_info
     return fracs[np.where(std_infos == np.nanmin(std_infos))]   
    
-def nmf_math(sci, ref_psfs, sci_err = None, ref_psfs_err = None, componentNum = 5, maxiters = 1e5, oneByOne = True, trg_type = 'disk',
+def nmf_math(sci, ref_psfs, sci_err = None, ref_psfs_err = None, componentNum = [5], maxiters = 1e5, oneByOne = True, trg_type = 'disk',
             ignore_mask = None, path_save = None, recalculate = False, 
             mask_data_imputation = None):
     """
@@ -319,32 +323,49 @@ def nmf_math(sci, ref_psfs, sci_err = None, ref_psfs_err = None, componentNum = 
     badpix = np.where(np.isnan(sci))
     sci[badpix] = 0
 
+    sci[sci<0]=0
+    ref_psfs[ref_psfs<0]=0
+    ref_psfs[np.isnan(ref_psfs)]=0
+
     ## MMB says: This has always just worked better for me with just the ones anyway..
     if ref_psfs_err is None:
         ref_psfs_err = np.ones(ref_psfs.shape)
     if sci_err is None:
         sci_err = np.ones(sci.shape)
+    if ignore_mask is not None:
+        ignore_mask = ignore_mask.T
+    
+    maxcomponents = max(componentNum)
 
-    components = NMFcomponents(ref_psfs, ref_err = ref_psfs_err, n_components = componentNum, maxiters = maxiters, oneByOne=oneByOne,
+    if maxcomponents > ref_psfs.shape[0]:
+        maxcomponents = ref_psfs.shape[0]
+    
+    components = NMFcomponents(ref_psfs, ref_err = ref_psfs_err, n_components = maxcomponents, maxiters = maxiters, oneByOne=oneByOne,
                                 ignore_mask = ignore_mask, path_save = path_save, recalculate = recalculate)
-                            
-    if mask_data_imputation is None:
-        model = NMFmodelling(trg = sci, components = components, n_components = componentNum, trg_err = sci_err, maxiters=maxiters,
-                                mask_data_imputation = mask_data_imputation)
+    
+    results = []
+    for num in componentNum:              
+        if mask_data_imputation is None:
+            model = NMFmodelling(trg = sci, components = components[:num], n_components = num, trg_err = sci_err, maxiters=maxiters,
+                                    mask_data_imputation = mask_data_imputation)
 
-        if trg_type == "planet" or trg_type == "p":
-            best_frac = 1
-        elif trg_type == "disk" or trg_type == "d":
-            best_frac = NMFbff(trg = sci, model = model)
-        
-        result = NMFsubtraction(trg = sci, model = model, frac = best_frac)
-        result = result.flatten()
-        result[badpix] = np.nan
+            if trg_type == "planet" or trg_type == "p":
+                best_frac = 1
+            elif trg_type == "disk" or trg_type == "d":
+                best_frac = NMFbff(trg = sci, model = model)
+            
+            result = NMFsubtraction(trg = sci, model = model, frac = best_frac)
+            result = result.flatten()
+            result[badpix] = np.nan
+            results.append(result)
 
-    else:
-        model = NMFmodelling(trg = sci, components = components, n_components = componentNum, trg_err = sci_err, maxiters=maxiters,
-                                mask_data_imputation = mask_data_imputation)
-                                
-        result = sci - model
+        else:
+            model = NMFmodelling(trg = sci, components = components[:num], n_components = num, trg_err = sci_err, maxiters=maxiters,
+                                    mask_data_imputation = mask_data_imputation)
+                                    
+            result = sci - model
+            results.append(result)
 
-    return result
+    results = np.array(results).T
+
+    return results
