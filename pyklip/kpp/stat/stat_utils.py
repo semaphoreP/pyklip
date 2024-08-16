@@ -17,7 +17,8 @@ def get_image_stat_map(image,
                         r_step = 2,
                         Dr = 2,
                         type = "SNR",
-                        image_wide = None):
+                        image_wide = None,
+                        azimuthal_sectors_for_masking=1):
     """
     Calculate the SNR, the standard deviation or the probability (tail distribution) of a given image using concentric
     annuli.
@@ -44,6 +45,11 @@ def get_image_stat_map(image,
                     If "proba" triggers proba calculation with pdf fitting.
         image_wide: Don't divide the image in annuli or sectors when computing the statistic.
                     Use the entire image directly.
+        azimuthal_sectors_for_masking: if > 1, breaks up the image into this many azimuthal 
+                    sectors, with pixels in the sector and half a sector outside all
+                    masked to compute the statistic in that sector. This is to avoid planet
+                    signals from downweighter their own SNR. Useful when no image without 
+                    planet is available initially. Doesn't work for proba. 
 
     Return:
         The statistic map for image.
@@ -129,20 +135,7 @@ def get_image_stat_map(image,
             tmp_type = "stddev"
         else:
             tmp_type = type
-        stat_list, annulus_radii_list = get_image_stat(image_without_planet,tmp_type,(IWA,OWA),N,centroid,r_step=r_step,Dr=Dr,
-                                                           image_wide=image_wide)
-
-        radii = np.array(annulus_radii_list)[:,0]
-        #print(radii,stddev_list)
-
-        if not image_wide:
-            stat_func = interp1d(radii,stat_list,kind = "linear",bounds_error = False, fill_value=np.nan)
-        else:
-            stat_func = lambda x: stat_list[0]
-
-        #plt.figure()
-        #plt.plot(np.linspace(0,140,200),stddev_func(np.linspace(0,140,200)))
-        #plt.show()
+        azimuthal_bounds = np.linspace(0, 360, azimuthal_sectors_for_masking+1)
 
         stat_map = np.zeros(image.shape) + np.nan
         ny,nx = image.shape
@@ -152,10 +145,49 @@ def get_image_stat_map(image,
 
         # Calculate the radial distance of each pixel
         r_grid = abs(x_grid +y_grid*1j)
+        theta_grid = np.degrees(np.arctan2(y_grid, x_grid)) % 360
 
+        for azimuthal_index in range(azimuthal_sectors_for_masking):
+            theta_start = azimuthal_bounds[azimuthal_index]
+            theta_end = azimuthal_bounds[azimuthal_index+1]
+            dtheta = theta_end - theta_start
+            in_zone = np.where((theta_grid >= theta_start) & (theta_grid < theta_end))
+
+            if azimuthal_sectors_for_masking > 1:
+                image_without_planet_azimuthal_mask = np.copy(image_without_planet)
+                azimuthal_mask = np.where((theta_grid >= theta_start - dtheta/2) & (theta_grid < theta_end + dtheta/2))
+                image_without_planet_azimuthal_mask[azimuthal_mask] = np.nan
+                if theta_start == 0:
+                    image_without_planet_azimuthal_mask[np.where(theta_grid >= 360 - dtheta/2)] = np.nan
+                if theta_end == 360:
+                    image_without_planet_azimuthal_mask[np.where(theta_grid < dtheta/2)] = np.nan
+            else:
+                image_without_planet_azimuthal_mask = image_without_planet
+
+            stat_list, annulus_radii_list = get_image_stat(image_without_planet_azimuthal_mask,tmp_type,(IWA,OWA),N,centroid,r_step=r_step,Dr=Dr,
+                                                            image_wide=image_wide)
+
+            radii = np.array(annulus_radii_list)[:,0]
+            #print(radii,stddev_list)
+
+            if not image_wide:
+                stat_func = interp1d(radii,stat_list,kind = "linear",bounds_error = False, fill_value=np.nan)
+            else:
+                stat_func = lambda x: stat_list[0]
+
+            #plt.figure()
+            #plt.plot(np.linspace(0,140,200),stddev_func(np.linspace(0,140,200)))
+            #plt.show()
+
+
+
+
+            stat_vals = stat_func(r_grid[in_zone].ravel())
+            stat_map[in_zone] = stat_vals
+            # stat_map = stat_func(r_grid.ravel())
+            # stat_map.shape = r_grid.shape
+            
         nanpix = np.where(np.isnan(image))
-        stat_map = stat_func(r_grid.ravel())
-        stat_map.shape = r_grid.shape
         stat_map[nanpix] = np.nan
 
         if type == "SNR":
