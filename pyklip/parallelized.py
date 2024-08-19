@@ -447,7 +447,7 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
     
     #do the same for the reference PSFs
     #playing some tricks to vectorize the subtraction of the mean for each row
-    if algo.lower() == 'nmf' or 'nmf_jax': # do not do mean subtraction for NMF
+    if algo.lower() == 'nmf' or algo.lower() == 'nmf_jax': # do not do mean subtraction for NMF
         ref_psfs_mean_sub = ref_psfs
     else:
         ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
@@ -689,10 +689,11 @@ def _klip_section_multifile_perfile(img_num, section_ind, ref_psfs, covar,  corr
 
         #subctract the mean and remove the Nans from the RDI PSFs before measuring the covariance.
         # this was already done in _klip_section_multifile for the other PSFs)
-        if algo.lower() == 'nmf' or 'nmf_jax': # do not do mean subtraction for NMF
+        if algo.lower() == 'nmf' or algo.lower() == 'nmf_jax': # do not do mean subtraction for NMF
             rdi_psfs_selected = rdi_psfs_selected
         else:
             rdi_psfs_selected = rdi_psfs_selected - np.nanmean(rdi_psfs_selected, axis=1)[:, None]
+        
         rdi_psfs_selected[np.where(np.isnan(rdi_psfs_selected))] = 0
 
         # compute covariances. I could just grab these from ~20 lines above, but too lazy
