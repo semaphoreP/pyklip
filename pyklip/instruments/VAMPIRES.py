@@ -3,10 +3,14 @@ Author: Miles Lucas <mdlucas@hawaii.edu>
 
 Implementation of interface adapter for VAMPIRES data processed with the VAMPIRES DPP (https://github.com/scexao-org/vampires_dpp)
 """
-from pyklip.instruments.Instrument import Data
-import numpy as np
-import pyklip
 import warnings
+
+from astropy.io import fits
+from astropy.wcs import WCS
+import numpy as np
+
+from pyklip.instruments.Instrument import Data
+import pyklip
 
 class VAMPIRESData(Data):
     """
@@ -16,7 +20,8 @@ class VAMPIRESData(Data):
     ----
     Data is expected to be processed from the VAMPIRES DPP
     """
-    MASK_IWA = { # mask name: IWA in mas
+
+    MASK_IWA = {  # mask name: IWA in mas
         "FIELDSTOP": 0,
         "CLC-2": 37,
         "CLC-3": 59,
@@ -147,9 +152,7 @@ class VAMPIRESData(Data):
         centers = []
 
         for index, filepath in enumerate(filepaths):
-            vamp_data = _vampires_process_file(
-                filepath
-            )
+            vamp_data = _vampires_process_file(filepath)
             data.append(vamp_data["cube"])
             centers.append(vamp_data["centers"])
             PAs.append(vamp_data["PAs"])
@@ -170,22 +173,25 @@ class VAMPIRESData(Data):
 
         ## If IWA was not set by user, determine it
         if self.IWA is None:
-            self.IWA = 0 # default value
+            self.IWA = 0  # default value
             if "U_FLDSTP" in self.prim_hdrs[0]:
                 coro_mask = self.prim_hdrs[0]["U_FLDSTP"]
                 if coro_mask in self.MASK_IWA:
                     coro_iwa_mas = self.MASK_IWA[coro_mask]
                 else:
                     coro_iwa_mas = 0
-                    msg = "Did not recognize focal plane optic '{}', IWA set to 0".format(coro_mask)
+                    msg = (
+                        "Did not recognize focal plane optic '{}', IWA set to 0".format(
+                            coro_mask
+                        )
+                    )
                     warnings.warn(msg, stacklevel=2)
-                pxscale = self.prim_hdrs[0]["PXSCALE"] # mas / px
+                pxscale = self.prim_hdrs[0]["PXSCALE"]  # mas / px
                 self.IWA = coro_iwa_mas / pxscale
 
         ## If OWA was not set by user, determine it
         if self.OWA is None:
             self.OWA = min(self.input.shape[-2:]) / 2
-
 
     def savedata(
         self,
@@ -208,7 +214,10 @@ class VAMPIRESData(Data):
         zaxis: a list of values for the zaxis of the datacub (for KL mode cubes currently)
         fakePlparams: fake planet params
         """
-        prim_hdu = fits.PrimaryHDU(data=data, header=self.prim_hdrs[0])
+        # need to fix WCS
+        header = self.prim_hdrs[0]
+        header.update(self.output_wcs[0].to_header())
+        prim_hdu = fits.PrimaryHDU(data=data, header=header)
         hdulist = fits.HDUList([prim_hdu])
 
         # save all the files we used in the reduction
@@ -263,10 +272,6 @@ class VAMPIRESData(Data):
 
     def calibrate_output(self, img, spectral=False):
         ...
-
-
-from astropy.io import fits
-from astropy.wcs import WCS
 
 
 def _vampires_process_file(filepath):
