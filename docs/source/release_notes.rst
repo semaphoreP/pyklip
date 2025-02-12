@@ -3,6 +3,10 @@
 Release Notes
 ==============
 
+Version 2.8
+ * Updated JWST Interface to work with new spaceKLIP
+ * SNR map has additional azimuthal masking option
+
 Version 2.7.1
  * Hotfix to address scipy deprecation of keyword in `eigh()` functio (Jason Wang, Jens Kammerer)
  * PSF library is consistently high pass filtered with dataset (Max Millar-Blanchaer)
