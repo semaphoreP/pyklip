@@ -3,6 +3,9 @@
 Release Notes
 ==============
 
+Version 2.8.1
+ * Add missing tqdm to dependencies
+
 Version 2.8
  * Updated JWST Interface to work with new spaceKLIP
  * SNR map has additional azimuthal masking option
