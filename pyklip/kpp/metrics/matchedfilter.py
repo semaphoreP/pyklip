@@ -101,7 +101,7 @@ def calculate_matchedfilter(row_indices,col_indices,image,PSF,stamp_PSF_sky_mask
 
     return (mf_map,cc_map,flux_map)
 
-def run_matchedfilter(image, PSF,N_threads=None,maskedge=True):
+def run_matchedfilter(image, PSF,N_threads=None,maskedge=True, aprad_frac=7./20.):
         """
         Perform a matched filter on the current loaded file.
 
@@ -110,6 +110,7 @@ def run_matchedfilter(image, PSF,N_threads=None,maskedge=True):
             PSF: Template for the matched filter. It should include any kind of spectrum you which to use of the data is 3d.
             maskedge: If True (default), mask the edges of the image to prevent partial projection of the PSF.
                   If False, does not mask the edges.
+            aprad_frac: fraction of the input PSF FOV to use as the aperture radius
 
         Return: Processed images (matched filter,cross correlation,estimated flux).
         """
@@ -170,7 +171,7 @@ def run_matchedfilter(image, PSF,N_threads=None,maskedge=True):
         # We use the PSF cube to consider also the spectrum of the planet we are looking for.
         stamp_PSF_x_grid, stamp_PSF_y_grid = np.meshgrid(np.arange(0,nx_PSF,1)-nx_PSF//2,
                                                          np.arange(0,ny_PSF,1)-ny_PSF//2)
-        aper_radius = np.min([ny_PSF,nx_PSF])*7./20.
+        aper_radius = np.min([ny_PSF,nx_PSF])*aprad_frac
         r_PSF_stamp = (stamp_PSF_x_grid)**2 +(stamp_PSF_y_grid)**2
         where_sky_mask = np.where(r_PSF_stamp < (aper_radius**2))
         stamp_PSF_sky_mask = np.ones((ny_PSF,nx_PSF))
