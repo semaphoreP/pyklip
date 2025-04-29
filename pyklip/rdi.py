@@ -39,6 +39,9 @@ class PSFLibrary(object):
             compute_correlation (boolean): if True, compute the correlation matrix. Note that this can potentially take a
                                     long time, so you really should be doing it once and saving it
         """
+        if np.size(aligned_center) != 2:
+            raise ValueError("aligned_center should be (x,y) coordinate of size 2, but got size {0}".format(np.size(aligned_center)))
+
         # call init() of super class
         super(PSFLibrary, self).__init__()
 

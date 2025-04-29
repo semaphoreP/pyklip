@@ -2,6 +2,7 @@ import os
 import glob
 from time import time
 import numpy as np
+import pytest
 import astropy.io.fits as fits
 
 import pyklip.instruments.Instrument as Instrument
@@ -22,8 +23,8 @@ def test_RDI():
     # just load in the first file
     numfiles = 1
 
-    hdulist = fits.open(filename)
-    inputdata = hdulist[1].data
+    with fits.open(filename) as hdulist:
+        inputdata = hdulist[1].data
 
     fakewvs = np.arange(37*numfiles, dtype=float) + 1
     fakepas = np.zeros(37*numfiles, dtype=float)
@@ -47,3 +48,18 @@ def test_RDI():
                             aligned_center=fakecenters[1], psf_library=psflib, movement=1)
 
 
+def test_aligned_center_exception():
+    """
+    Passing in more than 1 center raises exception
+    """
+    filelist = glob.glob(testdir + os.path.join("data", "S20131210*distorcorr.fits"))
+    filename = filelist[0]
+
+    with fits.open(filename) as hdulist:
+        inputdata = hdulist[1].data
+    numfiles = 1
+    fakecenters = np.array([[140,140] for _ in range(37*numfiles)])
+    filenames = np.array([filename + str(i) for i in range(37*numfiles)])
+    
+    with pytest.raises(ValueError):
+        psflib = rdi.PSFLibrary(inputdata, fakecenters, filenames, compute_correlation=True)
