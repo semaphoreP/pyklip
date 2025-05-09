@@ -453,6 +453,7 @@ class JWSTData(Data):
         hdul[0].header['CREATOR'] = 'pyKLIP-{0}'.format(pyklipver)
         hdul[0].header['pyklipv'] = (pyklipver, 'pyKLIP version that was used')
         if klipparams is not None:
+            klipparams= ''.join(c for c in klipparams if c.isprintable())
             hdul[0].header['PSFPARAM'] = (klipparams, 'KLIP parameters')
             hdul[0].header.add_history('pyKLIP reduction with parameters {0}'.format(klipparams))
         
