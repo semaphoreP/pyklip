@@ -25,6 +25,7 @@ class JWSTData(Data):
                  filepaths,
                  psflib_filepaths=None,
                  highpass=False,
+                 center_keywords=['CRPIX1', 'CRPIX2'],
                  center_include_offset=True):
         """
         Initialize the pyKLIP instrument class for space telescope data.
@@ -35,6 +36,9 @@ class JWSTData(Data):
             Paths of the input science observations.
         psflib_filepaths : 1D-array, optional
             Paths of the input reference observations. The default is None.
+        center_keywords : 1D-array, optional
+            Keywords in the FITS header that define your desired x,y, center. The default is ['CRPIX1', 'CRPIX2'] and
+            are 1-indexed.
         center_include_offset : bool
             Toggle as to whether the relative header offset values of each
             image is applied during image centering. 
@@ -77,6 +81,8 @@ class JWSTData(Data):
             self.wave_miri = {'F560W': 5.6651275394955, 'F770W': 7.7111482022015, 'F1000W': 9.9981091216778, 'F1065C': 10.568152260847999, 'F1140C': 11.315651557554, 'F1130W': 11.315944161095, 'F1280W': 12.873834483415001, 'F1500W': 15.146907293049999, 'F1550C': 15.521965212798, 'F1800W': 18.050830116808, 'F2100W': 20.937318619694, 'F2300C': 22.76304870809, 'F2550W': 25.49941956148, 'FND': 13.0}
 
         # Optional variables
+        self.center_kw_x = center_keywords[0]
+        self.center_kw_y = center_keywords[1]
         self.center_include_offset = center_include_offset
                 
         # Read science and reference files.
@@ -231,11 +237,11 @@ class JWSTData(Data):
             # Get centers.
             if self.center_include_offset == True:
                 # Use the offset values from the header to adjust the center
-                centers = np.array([shead['CRPIX1'] - 1 + phead['XOFFSET'] / pix_scale, 
-                    shead['CRPIX2'] - 1 + phead['YOFFSET'] / pix_scale] * NINTS)
+                centers = np.array([shead[self.center_kw_x] - 1 + phead['XOFFSET'] / pix_scale,
+                    shead[self.center_kw_y] - 1 + phead['YOFFSET'] / pix_scale] * NINTS)
             else:
-                # Assume the CRPIX define the correct center for each image
-                centers = np.array([shead['CRPIX1'] - 1, shead['CRPIX2'] - 1] * NINTS)
+                # Assume the the provided keywords define the correct center
+                centers = np.array([shead[self.center_kw_x] - 1, shead[self.center_kw_y] - 1] * NINTS)
 
             # Get metadata.
             input_all += [data]
@@ -352,11 +358,11 @@ class JWSTData(Data):
             # Get centers.
             if self.center_include_offset == True:
                 # Use the offset values from the header to adjust the center
-                centers = np.array([shead['CRPIX1'] - 1 + phead['XOFFSET'] / pix_scale, 
-                    shead['CRPIX2'] - 1 + phead['YOFFSET'] / pix_scale] * NINTS)
+                centers = np.array([shead[self.center_kw_x] - 1 + phead['XOFFSET'] / pix_scale,
+                    shead[self.center_kw_y] - 1 + phead['YOFFSET'] / pix_scale] * NINTS)
             else:
-                # Assume the CRPIX define the correct center
-                centers = np.array([shead['CRPIX1'] - 1, shead['CRPIX2'] - 1] * NINTS)
+                # Assume the provided keywords define the correct center
+                centers = np.array([shead[self.center_kw_x] - 1, shead[self.center_kw_y] - 1] * NINTS)
             
             # Get metadata.
             psflib_data_all += [data]
@@ -472,7 +478,7 @@ class JWSTData(Data):
         # Update image center.
         center = self.output_centers[0]
         hdul[0].header.update({'PSFCENTX': center[0], 'PSFCENTY': center[1]})
-        hdul[0].header.update({'CRPIX1': center[0] + 1, 'CRPIX2': center[1] + 1})
+        hdul[0].header.update({self.center_kw_x: center[0] + 1, self.center_kw_y: center[1] + 1})
         hdul[0].header.add_history('Image recentered to {0}'.format(str(center)))
         
         # Write FITS file.
