@@ -25,7 +25,7 @@ class JWSTData(Data):
                  filepaths,
                  psflib_filepaths=None,
                  highpass=False,
-                 center_keywords=['CRPIX1', 'CRPIX2'],
+                 center_keywords=None,
                  center_include_offset=True):
         """
         Initialize the pyKLIP instrument class for space telescope data.
@@ -81,6 +81,9 @@ class JWSTData(Data):
             self.wave_miri = {'F560W': 5.6651275394955, 'F770W': 7.7111482022015, 'F1000W': 9.9981091216778, 'F1065C': 10.568152260847999, 'F1140C': 11.315651557554, 'F1130W': 11.315944161095, 'F1280W': 12.873834483415001, 'F1500W': 15.146907293049999, 'F1550C': 15.521965212798, 'F1800W': 18.050830116808, 'F2100W': 20.937318619694, 'F2300C': 22.76304870809, 'F2550W': 25.49941956148, 'FND': 13.0}
 
         # Optional variables
+        if center_keywords is None:
+            center_keywords = ['CRPIX1', 'CRPIX2']
+            
         self.center_kw_x = center_keywords[0]
         self.center_kw_y = center_keywords[1]
         self.center_include_offset = center_include_offset
