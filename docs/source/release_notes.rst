@@ -3,6 +3,11 @@
 Release Notes
 ==============
 
+Version 2.8.2
+ * JWST interface: can optionally specify the keywords used to find the iamge center (Aarynn Carter)
+ * Check for non-printable characters when writing klip params to headers (Aarynn Carter)
+ * Error check that RDI centers is a 2-element object
+
 Version 2.8.1
  * Add missing tqdm to dependencies
 
