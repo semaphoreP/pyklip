@@ -1755,7 +1755,7 @@ def calc_center(prihdr, exthdr, wvs, ignoreslices=None, skipslices=None, bad_sat
     spot_wvs = np.array(spot_wvs)
     spots_wvs_index = np.array(spots_wvs_index)
 
-    good = np.where(~np.in1d(spots_wvs_index, ignoreslices))
+    good = np.where(~np.isin(spots_wvs_index, ignoreslices))
 
     x0, y0, adrx, adry = calc_center_least_squares(spots_posx[good], spots_posy[good], spot_wvs[good], order_x[good],
                                                    order_y[good], displacement[good])
