@@ -370,7 +370,7 @@ def align_and_scale(img, new_center, old_center=None, scale_factor=1, dtype=floa
     mod_flag = 0 #check how many modifications we are making
 
     #if old_center is specified, realign the images
-    if ((old_center is not None) & ~(np.array_equal(new_center, old_center))):
+    if ((old_center is not None) and not (np.array_equal(new_center, old_center))):
         dx = new_center[0] - old_center[0]
         dy = new_center[1] - old_center[1]
         x -= dx
