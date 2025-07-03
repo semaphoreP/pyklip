@@ -212,12 +212,12 @@ class PSFLibrary(object):
         dataset_just_filenames = np.asarray([filename.split(os.sep)[-1] for filename in dataset.filenames])
         # print(dataset_just_filenames)
         # compare with the dataset filnames (also d)
-        in_dataset = np.in1d(master_just_filenames, dataset_just_filenames)
+        in_dataset = np.isin(master_just_filenames, dataset_just_filenames)
         
         # don't compare directly with None
         if badfiles is None:
             badfiles = np.full(np.shape(self.master_filenames), False, dtype=bool)
-        are_bad = np.in1d(self.master_filenames, badfiles)
+        are_bad = np.isin(self.master_filenames, badfiles)
         
         # good ones are the ones that don't fall in either category
         isgood = ~in_dataset & ~badfiles
