@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.interpolate import interp2d
+from scipy.interpolate import RectBivariateSpline
 
 def samplingRegion(size_window, theta = [45, 135], m = 0.2, M = 0.8, step = 1, decimals = 2, ray = False):
     """This function returns all the coordinates of the sampling region, the center of the region is (0,0)
@@ -112,7 +112,7 @@ def searchCenter(image, x_ctr_assign, y_ctr_assign, size_window, m = 0.2, M = 0.
     x_range = np.arange(x_len)
     y_range = np.arange(y_len)
 
-    image_interp = interp2d(x_range, y_range, image, kind = 'cubic')
+    image_interp = RectBivariateSpline(x_range, y_range, image.T) 
     #interpolate the image
     
     
@@ -143,7 +143,7 @@ def searchCenter(image, x_ctr_assign, y_ctr_assign, size_window, m = 0.2, M = 0.
     costFunction = smoothCostFunction(costFunction, halfWidth = smooth)
     #Smooth the cost function
     
-    interp_costfunction = interp2d(x_centers, y_centers, costFunction, kind='cubic')
+    interp_costfunction = RectBivariateSpline(x_centers, y_centers, costFunction.T, kx=3, ky=3) 
     
     
     for decimal in range(1, decimals+1):
