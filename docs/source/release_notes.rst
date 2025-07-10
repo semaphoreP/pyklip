@@ -3,6 +3,10 @@
 Release Notes
 ==============
 
+Version 2.8.3
+ * Update some code to remove deprecatipn warnings (William Balmer)
+ * Replace depreicated scipy.interpolate.interp2d with RectBivariateSpline in searchRadon (Jason Wang)
+
 Version 2.8.2
  * JWST interface: can optionally specify the keywords used to find the iamge center (Aarynn Carter)
  * Check for non-printable characters when writing klip params to headers (Aarynn Carter)
