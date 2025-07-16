@@ -10,6 +10,8 @@ import numpy as np
 import os, shutil, re
 import copy
 import warnings
+import pyklip.instruments.utils.wcsgen as wcsgen
+
 
 class JWSTData(Data):
     """
@@ -82,7 +84,7 @@ class JWSTData(Data):
 
         # Optional variables
         if center_keywords is None:
-            center_keywords = ['CRPIX1', 'CRPIX2']
+            center_keywords = ['STARCENX', 'STARCENY']
             
         self.center_kw_x = center_keywords[0]
         self.center_kw_y = center_keywords[1]
@@ -240,11 +242,14 @@ class JWSTData(Data):
             # Get centers.
             if self.center_include_offset == True:
                 # Use the offset values from the header to adjust the center
-                centers = np.array([shead[self.center_kw_x] - 1 + phead['XOFFSET'] / pix_scale,
-                    shead[self.center_kw_y] - 1 + phead['YOFFSET'] / pix_scale] * NINTS)
+                centers = np.array(
+                    [shead.get(self.center_kw_x, default=shead.get('CRPIX1')) - 1 + phead['XOFFSET'] / pix_scale,
+                     shead.get(self.center_kw_y, default=shead.get('CRPIX2')) - 1 + phead[
+                         'YOFFSET'] / pix_scale] * NINTS)
             else:
                 # Assume the the provided keywords define the correct center
-                centers = np.array([shead[self.center_kw_x] - 1, shead[self.center_kw_y] - 1] * NINTS)
+                centers = np.array([shead.get(self.center_kw_x, default=shead.get('CRPIX1')) - 1,
+                                    shead.get(self.center_kw_y, default=shead.get('CRPIX2')) - 1] * NINTS)
 
             # Get metadata.
             input_all += [data]
@@ -263,7 +268,9 @@ class JWSTData(Data):
             else:
                 raise UserWarning('Data originates from unknown JWST instrument')
             wvs_all += [1e-6 * CWAVEL] * NINTS
-            wcs_hdr = wcs.WCS(header=hdul['SCI'].header, naxis=hdul['SCI'].header['WCSAXES'])
+            wcs_hdr = wcsgen.generate_wcs(PAs_all[-1], centers, platescale=np.sqrt(hdul['SCI'].header['PIXAR_A2']),
+                                          radec=[hdul['SCI'].header['CRVAL1'],hdul['SCI'].header['CRVAL2']])
+
             for j in range(NINTS):
                 wcs_all += [wcs_hdr.deepcopy()]
             hdul.close()
@@ -361,11 +368,14 @@ class JWSTData(Data):
             # Get centers.
             if self.center_include_offset == True:
                 # Use the offset values from the header to adjust the center
-                centers = np.array([shead[self.center_kw_x] - 1 + phead['XOFFSET'] / pix_scale,
-                    shead[self.center_kw_y] - 1 + phead['YOFFSET'] / pix_scale] * NINTS)
+                centers = np.array(
+                    [shead.get(self.center_kw_x, default=shead.get('CRPIX1')) - 1 + phead['XOFFSET'] / pix_scale,
+                     shead.get(self.center_kw_y, default=shead.get('CRPIX2')) - 1 + phead[
+                         'YOFFSET'] / pix_scale] * NINTS)
             else:
-                # Assume the provided keywords define the correct center
-                centers = np.array([shead[self.center_kw_x] - 1, shead[self.center_kw_y] - 1] * NINTS)
+                # Assume the the provided keywords define the correct center
+                centers = np.array([shead.get(self.center_kw_x, default=shead.get('CRPIX1')) - 1,
+                                    shead.get(self.center_kw_y, default=shead.get('CRPIX2')) - 1] * NINTS)
             
             # Get metadata.
             psflib_data_all += [data]
