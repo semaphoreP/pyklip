@@ -45,7 +45,7 @@ Attribution
 The development of pyKLIP is led by Jason Wang with contributions made by Jonathan Aguilar, JB Ruffio, Rob de Rosa, 
 Schuyler Wolff, Abhijith Rajan, Zack Briesemeister, Kate Follette, Maxwell Millar-Blanchaer, Alexandra Greenbaum, 
 Simon Ko, Tom Esposito, Elijah Spiro, Pauline Arriaga, Bin Ren, Alan Rainot, Arthur Vigan, Johan Mazoyer, Graça Rocha, Jacob Golomb, 
-Jea Adams, Aarynn Carter, Minghan Chen, Robert Thompson, Jens Kammerer, and Laurent Pueyo. 
+Jea Adams, Aarynn Carter, Minghan Chen, Robert Thompson, Jens Kammerer, William Balmer, Giovanni Strampelli, and Laurent Pueyo. 
 
 General pyKLIP Citation
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -96,7 +96,7 @@ If you use the JWST interface, please cite:
 
 If you use the CHARIS interface, please cite:
 
- * Chen, M., Wang, J. J., Brandt, T. D., et al. submitted. 
+ * `Chen, M., Wang, J. J., Brandt, T. D., et al. 2023, RASTI, 2, 620. <https://ui.adsabs.harvard.edu/abs/2023RASTI...2..620C/abstract>`_
 
 If you use the Keck interface, please acknowledge Tom Esposito's development of the interface in your Acknowledgements section.
 

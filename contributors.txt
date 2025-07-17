@@ -47,3 +47,7 @@ Minghan Chen: Helped with key features of the CHARIS interface, wrote the emperi
 Robert Thompson: Wrote STIS interface
 
 Jens Kammerer: Helped build the JWST interface
+
+William Balmer: Helped develop the JWST interface
+
+Giovanni Strampelli: Helped develop the JWST interface

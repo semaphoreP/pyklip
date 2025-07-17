@@ -3,6 +3,9 @@
 Release Notes
 ==============
 
+Version 2.8.4
+ * Fix some star-center book-keeping edge-cases in JWST interface (Giovanni Strampelli)
+
 Version 2.8.3
  * Update some code to remove deprecatipn warnings (William Balmer)
  * Replace depreicated scipy.interpolate.interp2d with RectBivariateSpline in searchRadon (Jason Wang)
