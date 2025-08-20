@@ -20,7 +20,12 @@ def nMathar(wv, P, T, H=10):
     # if it was passed in as a float, we need to convert it into a array for code reuse
     if not isinstance(wvnum, np.ndarray):
         wvnum = np.array([wvnum])
-
+    if not isinstance(wv, np.ndarray):
+        wv = np.array([wv])
+        returnfloat = True
+    else:
+        returnfloat = False
+        
     # polynomial expansion in wavenumber
     # calcualate index of refraction by splitting it up by region
     # for region 1. < 2.65 microns, technically only valid for 1.3 to 2.5 microns
@@ -51,7 +56,7 @@ def nMathar(wv, P, T, H=10):
             n[region2] += coeff * ((wvnum[region2] - wvnum0)**power)
 
     # return a int/float if that is what is passed in
-    if isinstance(wv, (int, float)):
+    if returnfloat:
         n = n[0]
 
     return n

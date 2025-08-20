@@ -1606,20 +1606,20 @@ def calc_center_least_squares(xpos, ypos, wvs, orderx, ordery, displacement):
         four fit parameters (xcenter, ycenter, adrx, adry). xcenters = xcenter + ardx * displacement
     """
 
-    pos_x = np.matrix(xpos).T
-    pos_y = np.matrix(ypos).T
+    pos_x = np.array([xpos]).T
+    pos_y = np.array([ypos]).T
 
     #create the B matrix for the transform. See email from James on how to make this
-    Bx = np.append(np.matrix(np.ones(np.size(pos_x))).T, np.matrix(orderx*wvs).T,1)
-    Bx = np.append(Bx,np.matrix(-ordery*wvs).T, 1)
-    Bx = np.append(Bx, np.matrix(displacement).T , 1)
-    Bx = np.append(Bx, np.matrix(np.zeros(np.size(pos_x))).T, 1)
-    Bx = np.append(Bx, np.matrix(np.zeros(np.size(pos_x))).T, 1)
-    By = np.append(np.matrix(np.zeros(np.size(pos_y))).T, np.matrix(ordery*wvs).T, 1)
-    By = np.append(By, np.matrix(orderx*wvs).T, 1)
-    By = np.append(By, np.matrix(np.zeros(np.size(pos_y))).T, 1)
-    By = np.append(By, np.matrix(displacement).T , 1)
-    By = np.append(By, np.matrix(np.ones(np.size(pos_y))).T, 1)
+    Bx = np.append(np.array([np.ones(np.size(pos_x))]).T, np.array([orderx*wvs]).T,1)
+    Bx = np.append(Bx,np.array([-ordery*wvs]).T, 1)
+    Bx = np.append(Bx, np.array([displacement]).T , 1)
+    Bx = np.append(Bx, np.array([np.zeros(np.size(pos_x))]).T, 1)
+    Bx = np.append(Bx, np.array([np.zeros(np.size(pos_x))]).T, 1)
+    By = np.append(np.array([np.zeros(np.size(pos_y))]).T, np.array([ordery*wvs]).T, 1)
+    By = np.append(By, np.array([orderx*wvs]).T, 1)
+    By = np.append(By, np.array([np.zeros(np.size(pos_y))]).T, 1)
+    By = np.append(By, np.array([displacement]).T , 1)
+    By = np.append(By, np.array([np.ones(np.size(pos_y))]).T, 1)
 
     B = np.append(Bx,By,0)
 
@@ -1627,7 +1627,7 @@ def calc_center_least_squares(xpos, ypos, wvs, orderx, ordery, displacement):
     X = np.append(pos_x, pos_y, 0)
 
     #fit outputs
-    Q = (B.T*B).I * B.T* X
+    Q = np.linalg.inv(B.T @ B) @ B.T @ X
 
     xcenter = float(Q[0])
     ycenter = float(Q[5])
