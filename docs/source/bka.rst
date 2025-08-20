@@ -267,7 +267,7 @@ The maximum likelihood technique skips this step.
     fig = plt.figure(figsize=(10,8))
 
     # grab the chains from the sampler
-    chain = fit.sampler.chain
+    chain = fit.mcmc_chain
 
     # plot RA offset
     ax1 = fig.add_subplot(411)
