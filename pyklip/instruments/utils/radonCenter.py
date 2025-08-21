@@ -138,7 +138,7 @@ def searchCenter(image, x_ctr_assign, y_ctr_assign, size_window, m = 0.2, M = 0.
                 
                 value += image_interp(x, y)
             
-            costFunction[i, j] = value  #Create the cost function
+            costFunction[i, j] = value[0][0]  #Create the cost function
 
     costFunction = smoothCostFunction(costFunction, halfWidth = smooth)
     #Smooth the cost function
@@ -160,7 +160,7 @@ def searchCenter(image, x_ctr_assign, y_ctr_assign, size_window, m = 0.2, M = 0.
     
         for j, x in enumerate(x_centers_new):
             for i, y in enumerate(y_centers_new):
-                value[i, j] = interp_costfunction(x, y)
+                value[i, j] = interp_costfunction(x, y)[0][0]
         
         idx = np.where(value == np.max(value))
         #Just in case when there are multile maxima, then use the average of them. 
