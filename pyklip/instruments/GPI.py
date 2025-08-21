@@ -1629,12 +1629,12 @@ def calc_center_least_squares(xpos, ypos, wvs, orderx, ordery, displacement):
     #fit outputs
     Q = np.linalg.inv(B.T @ B) @ B.T @ X
 
-    xcenter = float(Q[0])
-    ycenter = float(Q[5])
-    shift1 = float(Q[1])
-    shift2 = float(Q[2])
-    adrx = float(Q[3])
-    adry = float(Q[4])
+    xcenter = float(Q[0][0])
+    ycenter = float(Q[5][0])
+    shift1 = float(Q[1][0])
+    shift2 = float(Q[2][0])
+    adrx = float(Q[3][0])
+    adry = float(Q[4][0])
 
 
     return xcenter, ycenter, adrx, adry
