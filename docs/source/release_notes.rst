@@ -16,6 +16,8 @@ Version 2.9
     * `pyklip.fitpsf`
     * `pyklip.instrument.utils.radonCenter`
 
+ * Switched packaging from setup.py to pyproject.toml since setup.py is being deprecated. 
+
 Version 2.8.4
  * Fix some star-center book-keeping edge-cases in JWST interface (Giovanni Strampelli)
 
