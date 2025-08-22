@@ -31,9 +31,3 @@ version = {attr = "pyklip.__version__"}
 
 [tool.setuptools.packages]
 find = {}
-
-[project.optional-dependencies]
-fm = [
-  "h5py"
-]
-1640 = ["photutils"]
