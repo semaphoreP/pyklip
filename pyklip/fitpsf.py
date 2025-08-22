@@ -3,10 +3,10 @@ import pickle
 import math
 import sys
 
+import multiprocessing as mp
 import numpy as np
 import scipy.linalg as linalg
 import scipy.ndimage as ndi
-import scipy.ndimage.interpolation as sinterp
 import scipy.optimize as optimize
 
 import pyklip.covars as covars
@@ -413,8 +413,12 @@ class FitPSF(object):
         sampler_bounds[2:] = np.log(sampler_bounds[2:])
 
         global lnprob
+        if numthreads > 1:
+            pool = mp.Pool(numthreads)
+        else:
+            pool = None
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(self, sampler_bounds, self.covar),
-                                        kwargs={'readnoise' : self.include_readnoise}, threads=numthreads)
+                                        kwargs={'readnoise' : self.include_readnoise}, pool=pool)
 
         # burn inf
         print("Running burn in")
@@ -428,14 +432,16 @@ class FitPSF(object):
         print("MCMC sampler has finished")
 
         # convert chains in log space back in linear space
-        sampler.chain[:,:,2:] = np.exp(sampler.chain[:,:,2:])
+        self.mcmc_chain = sampler.get_chain()
+        self.mcmc_lnprob = sampler.get_log_prob()
+        self.mcmc_chain[:,:,2:] = np.exp(self.mcmc_chain[:,:,2:])
 
         # save state
         self.sampler = sampler
 
         # save best fit values
         # percentiles has shape [ndims, 3]
-        percentiles = np.swapaxes(np.percentile(sampler.flatchain, [16, 50, 84], axis=0), 0, 1)
+        percentiles = np.swapaxes(np.percentile(self.mcmc_chain, [16, 50, 84], axis=(0, 1)), 0, 1)
         self.fit_x = ParamRange(percentiles[0][1], np.array([percentiles[0][2], percentiles[0][0]]) - percentiles[0][1])
         self.fit_y = ParamRange(percentiles[1][1], np.array([percentiles[1][2], percentiles[1][0]]) - percentiles[1][1])
         self.fit_flux =  ParamRange(percentiles[2][1], np.array([percentiles[2][2], percentiles[2][0]]) -  percentiles[2][1])
@@ -443,8 +449,8 @@ class FitPSF(object):
 
         if save_chain:
             pickle_file = open(chain_output, 'wb')
-            pickle.dump(sampler.chain, pickle_file)
-            pickle.dump(sampler.lnprobability, pickle_file)
+            pickle.dump(self.mcmc_chain, pickle_file)
+            pickle.dump(self.mcmc_lnprob, pickle_file)
             pickle.dump(sampler.acceptance_fraction, pickle_file)
             #pickle.dump(sampler.acor, pickle_file)
             pickle_file.close()
@@ -566,7 +572,7 @@ class FitPSF(object):
         dx = self.fit_x.bestfit - self.data_stamp_x_center
         dy = self.fit_y.bestfit - self.data_stamp_y_center
 
-        fm_bestfit = self.fit_flux.bestfit * sinterp.shift(self.fm_stamp, [dy, dx])
+        fm_bestfit = self.fit_flux.bestfit * ndi.shift(self.fm_stamp, [dy, dx])
         if self.padding > 0:
             fm_bestfit = fm_bestfit[self.padding:-self.padding, self.padding:-self.padding]
 
@@ -670,7 +676,7 @@ def lnlike(fitparams, fma, cov_func, readnoise=False, negate=False):
     dx = x_trial - fma.data_stamp_x_center
     dy = y_trial - fma.data_stamp_y_center
 
-    fm_shifted = sinterp.shift(fma.fm_stamp, [dy, dx])
+    fm_shifted = ndi.shift(fma.fm_stamp, [dy, dx])
 
     if fma.padding > 0:
         fm_shifted = fm_shifted[fma.padding:-fma.padding, fma.padding:-fma.padding]
@@ -892,9 +898,9 @@ class FMAstrometry(FitPSF):
         self.fit_psf(nwalkers, nburn, nsteps, save_chain, chain_output, numthreads)
         
         # convert chains to relative separation
-        self.sampler.chain[:,:,0] -= self.data_center[0]
-        self.sampler.chain[:,:,0] *= -1
-        self.sampler.chain[:,:,1] -= self.data_center[1]
+        self.mcmc_chain[:,:,0] -= self.data_center[0]
+        self.mcmc_chain[:,:,0] *= -1
+        self.mcmc_chain[:,:,1] -= self.data_center[1]
         # save RA/dec offsets 
         self.raw_RA_offset = ParamRange(-(self.fit_x.bestfit - self.data_center[0]), self.fit_x.error_2sided[::-1])
         self.raw_Dec_offset = ParamRange(self.fit_y.bestfit - self.data_center[1], self.fit_y.error_2sided[::-1])
@@ -914,8 +920,8 @@ class FMAstrometry(FitPSF):
         if self.isbayesian:
             # format MCMC chains
             # ensure numpy arrays
-            x_fit = self.sampler.chain[:,:,0].flatten()
-            y_fit = self.sampler.chain[:,:,1].flatten()
+            x_fit = self.mcmc_chain[:,:,0].flatten()
+            y_fit = self.mcmc_chain[:,:,1].flatten()
 
         else:
             x_fit = self.raw_RA_offset.bestfit
@@ -1302,7 +1308,7 @@ class PlanetEvidence(FMAstrometry):
         dx = self.fit_x.bestfit - self.data_stamp_x_center
         dy = self.fit_y.bestfit - self.data_stamp_y_center
 
-        fm_bestfit = self.fit_flux.bestfit * sinterp.shift(self.fm_stamp, [dy, dx])
+        fm_bestfit = self.fit_flux.bestfit * ndi.shift(self.fm_stamp, [dy, dx])
         if self.padding > 0:
             fm_bestfit = fm_bestfit[self.padding:-self.padding, self.padding:-self.padding]
 
