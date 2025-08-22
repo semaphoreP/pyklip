@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyklip"
+description = "pyKLIP: PSF Subtraction for Exoplanets and Disks"
+dynamic = ["version"]
+dependencies = [
+    "numpy",
+    "scipy",
+    "astropy",
+    "matplotlib",
+    "emcee>3",
+    "corner",
+    "astroquery",
+    "tqdm"
+]
+readme = "README.md"
+license = "BSD-3-Clause"
+classifiers = [
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Astronomy",
+        "Programming Language :: Python :: 3"
+]
+keywords = ["KLIP", "PSF Subtraction", "Exoplanets", "Astronomy"]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "pyklip.__version__"}
+
+[tool.setuptools.packages]
+find = {}
+
+[project.optional-dependencies]
+fm = [
+  "h5py"
+]
+1640 = ["photutils"]
