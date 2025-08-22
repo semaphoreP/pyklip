@@ -28,7 +28,7 @@ pipelines:
           - pip install corner
 
           # install pyklip
-          - python install -e .
+          - pip install -e .
 
           # setup coveralls
           - pip install coveralls
