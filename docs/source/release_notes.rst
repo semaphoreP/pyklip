@@ -3,6 +3,19 @@
 Release Notes
 ==============
 
+Version 2.9
+ * Fix several deprecation warnings (depedencies that will deprecate API in the future). 
+ * BREAKING (minor): `FitPSF.sampler.chain` is no longer accessible due to changes in emcee v3. Use `FitPSF.mcmc_chain` instead. (Jason Wang).
+   
+    * The :ref:`bka-label` tutorial has been updated to reflect this when inspecting the MCMC chains
+ 
+ * Several modules have internal changes to fix deprecation warnings with no change to functionality (Jason Wang)
+ 
+    * `pyklip.instruments.utils.nair`
+    * `pyklip.instruments.GPI`: just the code for recalc_centers
+    * `pyklip.fitpsf`
+    * `pyklip.instrument.utils.radonCenter`
+
 Version 2.8.4
  * Fix some star-center book-keeping edge-cases in JWST interface (Giovanni Strampelli)
 
