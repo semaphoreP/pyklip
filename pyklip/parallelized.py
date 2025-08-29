@@ -861,6 +861,7 @@ def generate_noise_maps(imgs, aligned_center, dr, IWA=None, OWA=None, numthreads
     if pool is None:
         tpool.close()
         tpool.join()
+        tpool.terminate()
 
     return noise_maps
 
@@ -1382,6 +1383,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         print("Closing threadpool")
     tpool.close()
     tpool.join()
+    tpool.terminate()
 
     #finished. Let's reshape the output images
     #move number of KLIP modes as leading axis (i.e. move from shape (N,y,x,b) to (b,N,y,x)
