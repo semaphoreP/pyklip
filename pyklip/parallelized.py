@@ -789,6 +789,7 @@ def rotate_imgs(imgs, angles, centers, new_center=None, numthreads=None, flipx=F
     if pool is None:
         tpool.close()
         tpool.join()
+        tpool.terminate()
 
     return derotated
 
@@ -820,6 +821,7 @@ def high_pass_filter_imgs(imgs, numthreads=None, filtersize=10, pool=None):
     if pool is None:
         tpool.close()
         tpool.join()
+        tpool.terminate()
 
     return filtered
 
@@ -1084,6 +1086,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
     print("Closing threadpool")
     tpool.close()
     tpool.join()
+    tpool.terminate()
 
     #finished. Let's reshape the output images
     #move number of KLIP modes as leading axis (i.e. move from shape (N,y,x,b) to (b,N,y,x)
