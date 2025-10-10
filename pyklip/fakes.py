@@ -466,7 +466,7 @@ def generate_dataset_with_fakes(dataset, fake_position_dict, fake_flux_dict, spe
         # PSF_dist = 20 # Distance between PSFs. Actually length of an arc between 2 consecutive PSFs.
         # delta_pa = 180/np.pi*PSF_dist/radius
         pa_list = np.arange(-180.,180.-0.01,delta_th) + pa_shift
-        radii_list = np.array([dr * annuli_it + dataset.IWA + dr/2.for annuli_it in range(annuli-1)]) + sep_shift
+        radii_list = np.array([dr * annuli_it + dataset.IWA + dr/2. for annuli_it in range(annuli-1)]) + sep_shift
         pa_grid, radii_grid = np.meshgrid(pa_list,radii_list)
         pa_grid[range(1,annuli-1,2),:] += delta_th/2.
 
