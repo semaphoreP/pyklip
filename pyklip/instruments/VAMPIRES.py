@@ -204,7 +204,7 @@ class VAMPIRESData(Data):
         more_keywords=None,
     ):
         """
-        Save data in a VAMPIRES-like fashion.
+        Save data in a VAMPIRES-like fashion. Data is stored in the first HDU.
 
         Inputs:
         filepath: path to file to output
@@ -216,7 +216,8 @@ class VAMPIRESData(Data):
         """
         # need to fix WCS
         header = self.prim_hdrs[0]
-        header.update(self.output_wcs[0].to_header())
+        if self.output_wcs is not None:
+            header.update(self.output_wcs[0].to_header())
         prim_hdu = fits.PrimaryHDU(data=data, header=header)
         hdulist = fits.HDUList([prim_hdu])
 
@@ -270,13 +271,13 @@ class VAMPIRESData(Data):
         hdulist.writeto(filepath, overwrite=True)
         hdulist.close()
 
-    def calibrate_output(self, img, spectral=False):
-        ...
+    # def calibrate_output(self, img, spectral=False):
+    #     # first off, if we're not in 
 
 
 def _vampires_process_file(filepath):
     with fits.open(filepath) as hdulist:
-        cube = hdulist[0].data
+        cube = np.nan_to_num(hdulist[0].data)
         header = hdulist[0].header
 
         # get wavelengths from the ancilliary headers
@@ -302,5 +303,12 @@ def _vampires_process_file(filepath):
 
 def _vampires_extract_wcs(hdulist):
     prim_hdr = hdulist[0].header
-    wcs = WCS(header=prim_hdr, naxis=2)
-    return [wcs.deepcopy() for _ in hdulist[2:]]
+    wcs_out = WCS(header=prim_hdr, naxis=2)
+
+    pc = np.array(wcs_out.wcs.pc)
+    cdelt = np.array(wcs_out.wcs.cdelt)
+    cd = pc * cdelt[None, :]  # multiply each column by CDELT_j
+
+    wcs_out.wcs.cd = cd
+
+    return [wcs_out.deepcopy() for _ in hdulist[2:]]

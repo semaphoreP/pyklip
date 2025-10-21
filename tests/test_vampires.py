@@ -76,8 +76,7 @@ def test_vampiresdata_construction():
 
 
 # sets up a patch object to mock.
-@patch("pyklip.parallelized.klip_parallelized")
-def test_vampires_klip(mock_klip_parallelized):
+def test_vampires_klip():
     """
     # Tests P1640 support by running through the P1640 tutorial without the interactive parts.
 
@@ -90,44 +89,75 @@ def test_vampires_klip(mock_klip_parallelized):
     """
 
     # create a mocked klip parallelized
-    mock_klip_parallelized.return_value = (
-        np.zeros((3, 4, 756, 756)),
-        np.array([140, 140]),
-        np.array([1.0]),
-    )
+    # mock_klip_parallelized.return_value = (
+    #     np.zeros((3, 4, 756, 756)),
+    #     np.array([140, 140]),
+    #     np.array([1.0]),
+    # )
 
     from pyklip import parallelized
 
     directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
     datadir = os.path.join(directory, "vampires")
     outputdir = os.path.join(datadir, "output") + os.path.sep
+    
+    if not os.path.exists(outputdir):
+        os.makedirs(outputdir)
 
-    # time it
     t1 = time.perf_counter()
-
     # create dataset
     filelist = load_vampires_test_data()
     dataset = VAMPIRES.VAMPIRESData(filelist)
 
-    if not os.path.exists(outputdir):
-        os.makedirs(outputdir)
+    print("{0} seconds to load {1} frames".format(time.perf_counter() - t1, len(filelist)))
 
-    parallelized.klip_dataset(
+
+    ## Run KLIP
+    # common keywords
+    kwargs = dict(
         dataset,
         outputdir=outputdir,
-        fileprefix="test",
         annuli=5,
         subsections=4,
         movement=0,
-        numbasis=[1, 3, 10],
+        numbasis=[1, 2, 3],
         calibrate_flux=False,
-        mode="SDI",
     )
+
+    ## SDI
+    t1 = time.perf_counter()
+    parallelized.klip_dataset(
+        mode="SDI",
+        fileprefix="test_sdi",
+        **kwargs
+    )
+    print("{0} seconds to run SDI".format(time.perf_counter() - t1))
     # should have 4 outputted files
-    output_files = glob.glob(outputdir + "*")
+    output_files = glob.glob(outputdir + "test_sdi*")
     assert len(output_files) == 4
 
-    print("{0} seconds to run".format(time.perf_counter() - t1))
+    ## ADI
+    t1 = time.perf_counter()
+    parallelized.klip_dataset(
+        mode="ADI",
+        fileprefix="test_adi",
+        **kwargs
+    )
+    print("{0} seconds to run ADI".format(time.perf_counter() - t1))
+    output_files = glob.glob(outputdir + "test_adi*")
+    assert len(output_files) == 4
+
+    ## ADI + SDI
+    t1 = time.perf_counter()
+    parallelized.klip_dataset(
+        mode="ADI+SDI",
+        fileprefix="test_adisdi",
+        **kwargs
+    )
+    print("{0} seconds to run ADI+SDI".format(time.perf_counter() - t1))
+    output_files = glob.glob(outputdir + "test_adisdi*")
+    assert len(output_files) == 4
+
 
 
 if __name__ == "__main__":
