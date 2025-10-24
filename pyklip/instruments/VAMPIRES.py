@@ -218,6 +218,11 @@ class VAMPIRESData(Data):
         header = self.prim_hdrs[0]
         if self.output_wcs is not None:
             header.update(self.output_wcs[0].to_header())
+            # Note: if PC matrix is identity the to_header() function doesn't
+            # create any header entries for PCi_j. Therefore, manually override those
+            header["PC1_1"] = header["PC2_2"] = 1
+            header["PC1_2"] = header["PC2_1"] = 0
+            
         prim_hdu = fits.PrimaryHDU(data=data, header=header)
         hdulist = fits.HDUList([prim_hdu])
 
@@ -272,7 +277,7 @@ class VAMPIRESData(Data):
         hdulist.close()
 
     # def calibrate_output(self, img, spectral=False):
-    #     # first off, if we're not in 
+    #     # first off, if we're not in
 
 
 def _vampires_process_file(filepath):
@@ -302,6 +307,9 @@ def _vampires_process_file(filepath):
 
 
 def _vampires_extract_wcs(hdulist):
+    """
+    Read out relevant WCS parameters and destroy extraneous entries
+    """
     prim_hdr = hdulist[0].header
     wcs_out = WCS(header=prim_hdr, naxis=2)
 
@@ -310,5 +318,6 @@ def _vampires_extract_wcs(hdulist):
     cd = pc * cdelt[None, :]  # multiply each column by CDELT_j
 
     wcs_out.wcs.cd = cd
+    wcs_out.wcs.pc = [[1, 0], [0, 1]]
 
     return [wcs_out.deepcopy() for _ in hdulist[2:]]
