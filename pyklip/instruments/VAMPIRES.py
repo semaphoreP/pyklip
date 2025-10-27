@@ -220,8 +220,11 @@ class VAMPIRESData(Data):
             header.update(self.output_wcs[0].to_header())
             # Note: if PC matrix is identity the to_header() function doesn't
             # create any header entries for PCi_j. Therefore, manually override those
-            header["PC1_1"] = header["PC2_2"] = 1
-            header["PC1_2"] = header["PC2_1"] = 0
+            if "PC1_1" in header:
+                del header["PC1_1"]
+                del header["PC1_2"]
+                del header["PC2_1"]
+                del header["PC2_2"]
             
         prim_hdu = fits.PrimaryHDU(data=data, header=header)
         hdulist = fits.HDUList([prim_hdu])
@@ -315,7 +318,7 @@ def _vampires_extract_wcs(hdulist):
 
     pc = np.array(wcs_out.wcs.pc)
     cdelt = np.array(wcs_out.wcs.cdelt)
-    cd = pc * cdelt[None, :]  # multiply each column by CDELT_j
+    cd = pc * cdelt[:, None]  # multiply each column by CDELT_j
 
     wcs_out.wcs.cd = cd
     wcs_out.wcs.pc = [[1, 0], [0, 1]]
