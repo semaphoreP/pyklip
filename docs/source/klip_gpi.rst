@@ -20,9 +20,9 @@ and tutorials to reduce GPI data. After reducing the data, you should have a ser
 dimension is either wavelength or polarization depending on if you are working with spectral or polarimetric data.
 Regardless, the data should have the satellite spot fluxes and locations measured and stored in the header
 as we will need these to register and calibrate the datacubes.
-If you don't have any GPI data or are simply too lazy to reduce some yourself,
-you can use the reduced Beta Pic datacubes from the
-`GPI Public Data Release <https://www.gemini.edu/sciops/instruments/gpi/public-data>`_.
+If you don't have any GPI data, you can use the
+`reduced Beta Pic datacubes <https://bitbucket.org/pyKLIP/pyklip/src/main/tests/data/>`_
+that are part of the pyklip repo. 
 
 Once you have reduced your data, we can identify and convert the GPI data from GPI specific information
 to standardized information for pyKLIP. These initial steps of reading in and parsing the data are demonstrated below:
