@@ -246,6 +246,22 @@ def _align_and_scale(iterable_arg):
     return ref_wv_index, ref_wv
 
 
+def _custom_enumerate(array):
+    """
+    Custom enumerate function because it seems that the built-in function introduces floating precision errors
+
+    Args:
+        array: an array of length N
+    
+    Returns:
+        list: list (of length N) where each element is a 2-element tuple. The first element is the index, and 
+              the second element is the value of the array at that index
+    """
+    indices = np.arange(len(array))
+    enumerated = [(indices[i], array[i]) for i in range(len(array))]
+    return enumerated
+
+
 def _klip_section(img_num, parang, wavelength, wv_index, numbasis, radstart, radend, phistart, phiend, minmove,
                   ref_center, dtype=None, verbose=True):
     """
@@ -1019,7 +1035,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
     print("Total number of tasks for KLIP processing is {0}".format(tot_iter))
     jobs_complete = 0
     #align and scale the images for each image. Use map to do this asynchronously
-    for wv_index, this_wv in enumerate(np.unique(wvs)):
+    for wv_index, this_wv in _custom_enumerate(np.unique(wvs)):
         print("Begin processing of wv {0:.4} with index {1}".format(this_wv, wv_index))
         print("Aligning and scaling imgs")
         recentered_imgs_np = _arraytonumpy(recentered_imgs, recentered_imgs_shape,dtype=dtype)
@@ -1323,10 +1339,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         #align and scale the images for each image. Use map to do this asynchronously
         if verbose is True:
             print("Begin align and scale images for each wavelength")
-        realigned_index = tpool.imap_unordered(_align_and_scale, zip(enumerate(unique_wvs), itertools.repeat(aligned_center),itertools.repeat(dtype)))
+        realigned_index = tpool.imap_unordered(_align_and_scale, zip(_custom_enumerate(unique_wvs), itertools.repeat(aligned_center),itertools.repeat(dtype)))
     else:
         #align and scale the images for each image. Use map to do this asynchronously
-        realigned_index = enumerate(unique_wvs)
+        realigned_index = _custom_enumerate(unique_wvs)
 
     #list to store each threadpool task
     outputs = []
@@ -1660,7 +1676,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         if save_aligned:
             dataset.aligned_and_scaled = []
 
-        for wvindex,unique_wv in enumerate(unique_wvs):
+        for wvindex,unique_wv in _custom_enumerate(unique_wvs):
             if (num_wvs > 1) and (verbose is True):
                 print("Running KLIP ADI on slice {0}/{1}: {2:.3f} um".format(wvindex+1, num_wvs, unique_wv))
             thiswv = np.where(dataset.wvs == unique_wv)
