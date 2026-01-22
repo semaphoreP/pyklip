@@ -246,22 +246,6 @@ def _align_and_scale(iterable_arg):
     return ref_wv_index, ref_wv
 
 
-def _custom_enumerate(array):
-    """
-    Custom enumerate function because it seems that the built-in function introduces floating precision errors
-
-    Args:
-        array: an array of length N
-    
-    Returns:
-        list: list (of length N) where each element is a 2-element tuple. The first element is the index, and 
-              the second element is the value of the array at that index
-    """
-    indices = np.arange(len(array))
-    enumerated = [(indices[i], array[i]) for i in range(len(array))]
-    return enumerated
-
-
 def _klip_section(img_num, parang, wavelength, wv_index, numbasis, radstart, radend, phistart, phiend, minmove,
                   ref_center, dtype=None, verbose=True):
     """
@@ -995,13 +979,16 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
 
     #implement the thread pool
     #make a bunch of shared memory arrays to transfer data between threads
-    #make the array for the original images and initalize it
+    #`make the array for the original images and initalize it
     original_imgs = mp.Array(mp_data_type, np.size(imgs))
     original_imgs_shape = imgs.shape
     original_imgs_np = _arraytonumpy(original_imgs, original_imgs_shape,dtype=dtype)
     original_imgs_np[:] = imgs
+    # remake the wv array as shared array first. 
+    wvs_imgs = mp.Array(mp_data_type, np.size(wvs))
+    wvs_imgs_np = _arraytonumpy(wvs_imgs,dtype=dtype) # use this array from now on, since it has the right dtype
+    wvs_imgs_np[:] = wvs 
     #make array for recentered/rescaled image (only big enough for one wavelength at a time)
-    unique_wvs = np.unique(wvs)
     recentered_imgs = mp.Array(mp_data_type, np.size(imgs))
     recentered_imgs_shape = imgs.shape
     #make output array which also has an extra dimension for the number of KL modes to use
@@ -1013,9 +1000,6 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
     pa_imgs = mp.Array(mp_data_type, np.size(parangs))
     pa_imgs_np = _arraytonumpy(pa_imgs,dtype=dtype)
     pa_imgs_np[:] = parangs
-    wvs_imgs = mp.Array(mp_data_type, np.size(wvs))
-    wvs_imgs_np = _arraytonumpy(wvs_imgs,dtype=dtype)
-    wvs_imgs_np[:] = wvs
     centers_imgs = mp.Array(mp_data_type, np.size(centers))
     centers_imgs_np = _arraytonumpy(centers_imgs, centers.shape,dtype=dtype)
     centers_imgs_np[:] = centers
@@ -1035,7 +1019,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
     print("Total number of tasks for KLIP processing is {0}".format(tot_iter))
     jobs_complete = 0
     #align and scale the images for each image. Use map to do this asynchronously
-    for wv_index, this_wv in _custom_enumerate(np.unique(wvs)):
+    for wv_index, this_wv in enumerate(np.unique(wvs_imgs_np)):
         print("Begin processing of wv {0:.4} with index {1}".format(this_wv, wv_index))
         print("Aligning and scaling imgs")
         recentered_imgs_np = _arraytonumpy(recentered_imgs, recentered_imgs_shape,dtype=dtype)
@@ -1054,7 +1038,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
         print("Wavelength {1:.4} with index {0} has finished align and scale. Queuing for KLIP".format(wv_index, this_wv))
 
         #pick out the science images that need PSF subtraction for this wavelength
-        scidata_indices = np.where(wvs == this_wv)[0]
+        scidata_indices = np.where(wvs_imgs_np == this_wv)[0]
 
         # commented out code to do _klip_section instead of _klip_section_multifile
         # outputs += [tpool.apply_async(_klip_section_profiler, args=(file_index, parang, wv_value, wv_index, numbasis,
@@ -1289,8 +1273,12 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
     original_imgs_shape = imgs.shape
     original_imgs_np = _arraytonumpy(original_imgs, original_imgs_shape,dtype=dtype)
     original_imgs_np[:] = imgs
+    # remake the wv array as shared array first. 
+    wvs_imgs = mp.Array(mp_data_type, np.size(wvs))
+    wvs_imgs_np = _arraytonumpy(wvs_imgs,dtype=dtype) # use this array from now on, since it has the right dtype
+    wvs_imgs_np[:] = wvs 
+    unique_wvs = np.unique(wvs_imgs_np)
     #make array for recentered/rescaled image for each wavelength
-    unique_wvs = np.unique(wvs)
     recentered_imgs = mp.Array(mp_data_type, np.size(imgs)*np.size(unique_wvs))
     recentered_imgs_shape = (np.size(unique_wvs),) + imgs.shape
     #make output array which also has an extra dimension for the number of KL modes to use
@@ -1298,13 +1286,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
     output_imgs_np = _arraytonumpy(output_imgs,dtype=dtype)
     output_imgs_np[:] = np.nan
     output_imgs_shape = imgs.shape + numbasis.shape
-    #remake the PA, wv, filenums, and center arrays as shared arrays
+    #remake the PA, filenums, and center arrays as shared arrays
     pa_imgs = mp.Array(mp_data_type, np.size(parangs))
     pa_imgs_np = _arraytonumpy(pa_imgs,dtype=dtype)
     pa_imgs_np[:] = parangs
-    wvs_imgs = mp.Array(mp_data_type, np.size(wvs))
-    wvs_imgs_np = _arraytonumpy(wvs_imgs,dtype=dtype)
-    wvs_imgs_np[:] = wvs
     centers_imgs = mp.Array(mp_data_type, np.size(centers))
     centers_imgs_np = _arraytonumpy(centers_imgs, centers.shape,dtype=dtype)
     centers_imgs_np[:] = centers
@@ -1339,10 +1324,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         #align and scale the images for each image. Use map to do this asynchronously
         if verbose is True:
             print("Begin align and scale images for each wavelength")
-        realigned_index = tpool.imap_unordered(_align_and_scale, zip(_custom_enumerate(unique_wvs), itertools.repeat(aligned_center),itertools.repeat(dtype)))
+        realigned_index = tpool.imap_unordered(_align_and_scale, zip(enumerate(unique_wvs), itertools.repeat(aligned_center),itertools.repeat(dtype)))
     else:
         #align and scale the images for each image. Use map to do this asynchronously
-        realigned_index = _custom_enumerate(unique_wvs)
+        realigned_index = enumerate(unique_wvs)
 
     #list to store each threadpool task
     outputs = []
@@ -1352,7 +1337,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
             print("Wavelength {1:.4} with index {0} has finished align and scale. Queuing for KLIP".format(wv_index, wv_value))
 
         #pick out the science images that need PSF subtraction for this wavelength
-        scidata_indices = np.where(wvs == wv_value)[0]
+        scidata_indices = np.where(wvs_imgs_np == wv_value)[0]
 
         # commented out code to do _klip_section instead of _klip_section_multifile
         # outputs += [tpool.apply_async(_klip_section_profiler, args=(file_index, parang, wv_value, wv_index, numbasis,
@@ -1676,7 +1661,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         if save_aligned:
             dataset.aligned_and_scaled = []
 
-        for wvindex,unique_wv in _custom_enumerate(unique_wvs):
+        for wvindex,unique_wv in enumerate(unique_wvs):
             if (num_wvs > 1) and (verbose is True):
                 print("Running KLIP ADI on slice {0}/{1}: {2:.3f} um".format(wvindex+1, num_wvs, unique_wv))
             thiswv = np.where(dataset.wvs == unique_wv)
