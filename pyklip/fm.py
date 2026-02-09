@@ -1191,18 +1191,18 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
     original_imgs_shape = imgs.shape
     original_imgs_np = _arraytonumpy(original_imgs, original_imgs_shape,dtype=fm_class.data_type)
     original_imgs_np[:] = imgs
-    # make array for recentered/rescaled image for each wavelength
-    unique_wvs = np.unique(wvs)
-    recentered_imgs = mp.Array(fm_class.data_type, np.size(imgs)*np.size(unique_wvs))
-    recentered_imgs_shape = (np.size(unique_wvs),) + imgs.shape
-
-    # remake the PA, wv, and center arrays as shared arrays
-    pa_imgs = mp.Array(fm_class.data_type, np.size(parangs))
-    pa_imgs_np = _arraytonumpy(pa_imgs,dtype=fm_class.data_type)
-    pa_imgs_np[:] = parangs
+    # remake the wvs array as a shared array first to get unique_wvs in the same data format
     wvs_imgs = mp.Array(fm_class.data_type, np.size(wvs))
     wvs_imgs_np = _arraytonumpy(wvs_imgs,dtype=fm_class.data_type)
     wvs_imgs_np[:] = wvs
+    unique_wvs = np.unique(wvs_imgs_np)
+    # make array for recentered/rescaled image for each wavelength
+    recentered_imgs = mp.Array(fm_class.data_type, np.size(imgs)*np.size(unique_wvs))
+    recentered_imgs_shape = (np.size(unique_wvs),) + imgs.shape
+    # remake the PA and center arrays as shared arrays
+    pa_imgs = mp.Array(fm_class.data_type, np.size(parangs))
+    pa_imgs_np = _arraytonumpy(pa_imgs,dtype=fm_class.data_type)
+    pa_imgs_np[:] = parangs
     centers_imgs = mp.Array(fm_class.data_type, np.size(centers))
     centers_imgs_np = _arraytonumpy(centers_imgs, centers.shape,dtype=fm_class.data_type)
     centers_imgs_np[:] = centers
@@ -1309,7 +1309,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
         for wv_index, wv_value in enumerate(unique_wvs):
 
             # pick out the science images that need PSF subtraction for this wavelength
-            scidata_indicies = np.where(wvs == wv_value)[0]
+            scidata_indicies = np.where(wvs_imgs_np == wv_value)[0]
 
             # perform KLIP asynchronously for each group of files of a specific wavelength and section of the image
             sector_job_queued[sector_index] += scidata_indicies.shape[0]
