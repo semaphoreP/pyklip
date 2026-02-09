@@ -1495,6 +1495,9 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
             numbasis = np.array(numbasis)
         else:
             numbasis = np.array([numbasis])
+        # check that numbasis has only integers
+        if numbasis.dtype.kind not in ("i", "u"):
+            raise TypeError("numbasis should be an integer array, but got array of type {0}".format(numbasis.dtype))
 
 
     time_collapse = time_collapse.lower()

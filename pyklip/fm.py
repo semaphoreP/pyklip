@@ -1867,6 +1867,9 @@ def klip_dataset(dataset, fm_class, mode="ADI+SDI", outputdir=".", fileprefix="p
             numbasis = np.array(numbasis)
         else:
             numbasis = np.array([numbasis])
+        # check that numbasis has only integers
+        if numbasis.dtype.kind not in ("i", "u"):
+            raise TypeError("numbasis should be an integer array, but got array of type {0}".format(numbasis.dtype))
 
     # check how we will collapse the data
     valid_time_collapse = ["mean", "weighted-mean"]
