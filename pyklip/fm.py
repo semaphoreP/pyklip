@@ -1193,7 +1193,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
     original_imgs_np[:] = imgs
     # remake the wvs array as a shared array first to get unique_wvs in the same data format
     wvs_imgs = mp.Array(fm_class.data_type, np.size(wvs))
-    wvs_imgs_np = _arraytonumpy(wvs_imgs,dtype=fm_class.data_type)
+    wvs_imgs_np = _arraytonumpy(wvs_imgs, dtype=wvs.dtype) # special: don't change the dtype here!
     wvs_imgs_np[:] = wvs
     unique_wvs = np.unique(wvs_imgs_np)
     # make array for recentered/rescaled image for each wavelength
