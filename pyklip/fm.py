@@ -769,7 +769,7 @@ def _align_and_scale_subset(thread_index, aligned_center,numthreads = None,dtype
         None
     """
     original_imgs = _arraytonumpy(original, original_shape,dtype=dtype)
-    wvs_imgs = _arraytonumpy(img_wv,dtype=dtype)
+    wvs_imgs = _arraytonumpy(img_wv,dtype=wvs_dtype)
     centers_imgs = _arraytonumpy(img_center, (np.size(wvs_imgs),2),dtype=dtype)
     centers_mask = _arraytonumpy(mask_centers, (np.size(wvs_imgs),2),dtype=dtype)
     aligned_imgs = _arraytonumpy(aligned, aligned_shape,dtype=dtype)
@@ -1065,7 +1065,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
         perturbmag: output indicating the magnitude of the linear perturbation to assess validity of KLIP FM
         aligned_center: (x, y) location indicating the star center for all images and FM after PSF subtraction
     """
-
+    global wvs_dtype # need this to be different, for type reasons
     ################## Interpret input arguments ####################
 
     # defaullt numbasis if none
@@ -1192,8 +1192,9 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
     original_imgs_np = _arraytonumpy(original_imgs, original_imgs_shape,dtype=fm_class.data_type)
     original_imgs_np[:] = imgs
     # remake the wvs array as a shared array first to get unique_wvs in the same data format
-    wvs_imgs = mp.Array(fm_class.data_type, np.size(wvs))
-    wvs_imgs_np = _arraytonumpy(wvs_imgs, dtype=wvs.dtype) # special: don't change the dtype here!
+    wvs_dtype = np.ctypeslib.as_ctypes_type(wvs.dtype) # special: preserve wavelength dtype
+    wvs_imgs = mp.Array(wvs_dtype, np.size(wvs) )
+    wvs_imgs_np = _arraytonumpy(wvs_imgs, dtype=wvs_dtype) 
     wvs_imgs_np[:] = wvs
     unique_wvs = np.unique(wvs_imgs_np)
     # make array for recentered/rescaled image for each wavelength
@@ -1561,7 +1562,7 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
 
     # grab the files suitable for reference PSF
     # load shared arrays for wavelengths and PAs
-    wvs_imgs = _arraytonumpy(img_wv,dtype=fm_class.data_type)
+    wvs_imgs = _arraytonumpy(img_wv,dtype=wvs_dtype)
     pa_imgs = _arraytonumpy(img_pa,dtype=fm_class.data_type)
     # calculate average movement in this section for each PSF reference image w.r.t the science image
     moves = klip.estimate_movement(avg_rad, parang, pa_imgs, wavelength, wvs_imgs, mode)
