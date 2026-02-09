@@ -755,7 +755,7 @@ def _tpool_init(original_imgs, original_imgs_shape, aligned_imgs, aligned_imgs_s
     psf_lib_shape = psf_library_shape
 
 
-def _align_and_scale_subset(thread_index, aligned_center,numthreads = None,dtype=float):
+def _align_and_scale_subset(thread_index, aligned_center,numthreads = None,dtype=float, wvs_dtype=float):
     """
     Aligns and scales a subset of images
 
@@ -764,12 +764,13 @@ def _align_and_scale_subset(thread_index, aligned_center,numthreads = None,dtype
         algined_center: center to align things to
         numthreads: Number of threads to be used. if none mp.cpu_count() is used.
         dtype: data type of the arrays for numpy (Should match the type used for the shared multiprocessing arrays)
+        wvs_dtype: data type for the wavelength array
 
     Returns:
         None
     """
     original_imgs = _arraytonumpy(original, original_shape,dtype=dtype)
-    wvs_imgs = _arraytonumpy(img_wv,dtype=dtype)
+    wvs_imgs = _arraytonumpy(img_wv,dtype=wvs_dtype)
     centers_imgs = _arraytonumpy(img_center, (np.size(wvs_imgs),2),dtype=dtype)
     centers_mask = _arraytonumpy(mask_centers, (np.size(wvs_imgs),2),dtype=dtype)
     aligned_imgs = _arraytonumpy(aligned, aligned_shape,dtype=dtype)
@@ -1065,7 +1066,6 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
         perturbmag: output indicating the magnitude of the linear perturbation to assess validity of KLIP FM
         aligned_center: (x, y) location indicating the star center for all images and FM after PSF subtraction
     """
-
     ################## Interpret input arguments ####################
 
     # defaullt numbasis if none
@@ -1191,18 +1191,19 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
     original_imgs_shape = imgs.shape
     original_imgs_np = _arraytonumpy(original_imgs, original_imgs_shape,dtype=fm_class.data_type)
     original_imgs_np[:] = imgs
+    # remake the wvs array as a shared array first to get unique_wvs in the same data format
+    fm_class.wvs_dtype = np.ctypeslib.as_ctypes_type(wvs.dtype) # special: preserve wavelength dtype
+    wvs_imgs = mp.Array(fm_class.wvs_dtype, np.size(wvs) )
+    wvs_imgs_np = _arraytonumpy(wvs_imgs, dtype=fm_class.wvs_dtype) 
+    wvs_imgs_np[:] = wvs
+    unique_wvs = np.unique(wvs_imgs_np)
     # make array for recentered/rescaled image for each wavelength
-    unique_wvs = np.unique(wvs)
     recentered_imgs = mp.Array(fm_class.data_type, np.size(imgs)*np.size(unique_wvs))
     recentered_imgs_shape = (np.size(unique_wvs),) + imgs.shape
-
-    # remake the PA, wv, and center arrays as shared arrays
+    # remake the PA and center arrays as shared arrays
     pa_imgs = mp.Array(fm_class.data_type, np.size(parangs))
     pa_imgs_np = _arraytonumpy(pa_imgs,dtype=fm_class.data_type)
     pa_imgs_np[:] = parangs
-    wvs_imgs = mp.Array(fm_class.data_type, np.size(wvs))
-    wvs_imgs_np = _arraytonumpy(wvs_imgs,dtype=fm_class.data_type)
-    wvs_imgs_np[:] = wvs
     centers_imgs = mp.Array(fm_class.data_type, np.size(centers))
     centers_imgs_np = _arraytonumpy(centers_imgs, centers.shape,dtype=fm_class.data_type)
     centers_imgs_np[:] = centers
@@ -1258,7 +1259,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
     aligned_outputs = []
     for threadnum in range(numthreads):
         #multitask this
-        aligned_outputs += [tpool.apply_async(_align_and_scale_subset, args=(threadnum, aligned_center,numthreads,fm_class.data_type))]
+        aligned_outputs += [tpool.apply_async(_align_and_scale_subset, args=(threadnum, aligned_center,numthreads,fm_class.data_type, fm_class.wvs_dtype))]
 
         #save it to shared memory
     for aligned_output in aligned_outputs:
@@ -1309,7 +1310,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
         for wv_index, wv_value in enumerate(unique_wvs):
 
             # pick out the science images that need PSF subtraction for this wavelength
-            scidata_indicies = np.where(wvs == wv_value)[0]
+            scidata_indicies = np.where(wvs_imgs_np == wv_value)[0]
 
             # perform KLIP asynchronously for each group of files of a specific wavelength and section of the image
             sector_job_queued[sector_index] += scidata_indicies.shape[0]
@@ -1561,7 +1562,7 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
 
     # grab the files suitable for reference PSF
     # load shared arrays for wavelengths and PAs
-    wvs_imgs = _arraytonumpy(img_wv,dtype=fm_class.data_type)
+    wvs_imgs = _arraytonumpy(img_wv,dtype=fm_class.wvs_dtype)
     pa_imgs = _arraytonumpy(img_pa,dtype=fm_class.data_type)
     # calculate average movement in this section for each PSF reference image w.r.t the science image
     moves = klip.estimate_movement(avg_rad, parang, pa_imgs, wavelength, wvs_imgs, mode)
@@ -1866,6 +1867,9 @@ def klip_dataset(dataset, fm_class, mode="ADI+SDI", outputdir=".", fileprefix="p
             numbasis = np.array(numbasis)
         else:
             numbasis = np.array([numbasis])
+        # check that numbasis has only integers
+        if numbasis.dtype.kind not in ("i", "u"):
+            raise TypeError("numbasis should be an integer array, but got array of type {0}".format(numbasis.dtype))
 
     # check how we will collapse the data
     valid_time_collapse = ["mean", "weighted-mean"]

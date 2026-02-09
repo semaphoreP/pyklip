@@ -10,6 +10,7 @@ import pyklip
 import pyklip.instruments
 import pyklip.parallelized as parallelized
 import pyklip.instruments.GPI as GPI
+import pyklip.instruments.Instrument as Instrument
 import pyklip.fakes as fakes
 
 import sys
@@ -211,8 +212,41 @@ def test_mock_SDI(mock_klip_parallelized):
 
     print("{0} seconds to run".format(time() - t1))
 
+def test_klip_dataset_error_checking():
+    """
+    Tests error checking for klip_dataset
 
+    Currently checks that if numbasis is not an integer array, it raises a TypeError. We can add more error checks here in the future
+    """
 
+    filelist = glob.glob(testdir + os.path.join("data", "S20131210*distorcorr.fits"))
+    filename = filelist[0]
+    
+    # just load in the first file
+    numfiles = 1
+
+    hdulist = fits.open(filename)
+    inputdata = hdulist[1].data
+
+    fakewvs = np.arange(37*numfiles, dtype=float) + 1
+    fakepas = np.zeros(37*numfiles, dtype=float)
+    fakecenters = np.array([[140,140] for _ in fakewvs])
+    filenames = np.array([filename + str(i) for i in range(37*numfiles)])#np.repeat([filename], 37)
+
+    dataset = Instrument.GenericData(inputdata[:1], fakecenters[:1], parangs=fakepas[:1], wvs=fakewvs[:1], filenames=filenames[:1])
+    dataset.output_centers = dataset.centers
+    dataset.output_wcs = dataset.wcs
+
+    numbasis=[1,5,10,20,50.] # number of KL basis vectors to use to model the PSF. We will try several different ones
+    maxnumbasis=150 # maximum number of most correlated PSFs to do PCA reconstruction with
+    annuli=3
+    subsections=4 # break each annulus into 4 sectors
+    # pytest expects the following line to raise a Type Error because numbasis contains a float, but klip_dataset expects an integer array for numbasis.
+    with pytest.raises(TypeError):
+        parallelized.klip_dataset(dataset, outputdir=testdir, fileprefix="ADIonly-1file", annuli=annuli,
+                            subsections=subsections, numbasis=numbasis, maxnumbasis=maxnumbasis, mode="ADI")
+    
 if __name__ == "__main__":
     test_example_gpi_klip_dataset()
     #test_adi_gpi_klip_dataset_with_fakes_twice()
+    test_klip_dataset_error_checking()
