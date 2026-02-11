@@ -138,10 +138,16 @@ class DiskFM(NoFM):
 
         if self.load_from_basis:
             # Its useless to save and load at the same time.
+            if len(numbasis) > 1:
+                raise ValueError("Saving and loading KL basis only available for a single KL mode: len(numbasis)=1")
+
             self.save_basis = False
             save_basis = False
 
         if self.save_basis is True:
+            if len(numbasis) > 1:
+                raise ValueError("Saving and loading KL basis only available for a single KL mode: len(numbasis)=1")
+
             manager = mp.Manager()
             self.klmodes_dict = manager.dict()
             self.evecs_dict = manager.dict()
