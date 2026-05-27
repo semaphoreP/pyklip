@@ -29,14 +29,18 @@ pipelines:
           # install some more dependencies
           - pip install emcee
           - pip install corner
-
-          # setup coveralls
-          - pip install coveralls
           # conda photutils is not happy with python 3.7. install manually for now
           #- conda install -y -c astropy photutils
           - apt-get update # make sure it can find gcc
           - apt-get install -y gcc
           - pip install photutils
+
+
+          # setup coveralls
+          - pip install coveralls
+
+          # setup pytest
+          - pip install pytest
 
           #Coverage and Coverall hooking
           - coverage run --source ./pyklip -m pytest
