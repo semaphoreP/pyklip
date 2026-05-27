@@ -214,5 +214,5 @@ def test_mock_SDI(mock_klip_parallelized):
 
 
 if __name__ == "__main__":
-    test_example_gpi_klip_dataset()
-    #test_adi_gpi_klip_dataset_with_fakes_twice()
+    # test_example_gpi_klip_dataset()
+    test_adi_gpi_klip_dataset_with_fakes_twice()
