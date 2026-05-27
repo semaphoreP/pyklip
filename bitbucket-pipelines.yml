@@ -2,7 +2,7 @@
 # Only use spaces to indent your .yml configuration.
 # -----
 # You can specify a custom docker image from Dockerhub as your build environment
-image: continuumio/anaconda3
+image: python
 
 options:
   max-time: 20 # configure default 20 minute timeout
@@ -23,12 +23,12 @@ pipelines:
           # - ls pyklip
           - ls pyklip/instruments
 
+          # install pyklip
+          - pip install -e .
+
           # install some more dependencies
           - pip install emcee
           - pip install corner
-
-          # install pyklip
-          - pip install -e .
 
           # setup coveralls
           - pip install coveralls
