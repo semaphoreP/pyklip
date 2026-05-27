@@ -29,6 +29,7 @@ pipelines:
           # install some more dependencies
           - pip install emcee
           - pip install corner
+          - pip install h5py
           # conda photutils is not happy with python 3.7. install manually for now
           #- conda install -y -c astropy photutils
           - apt-get update # make sure it can find gcc
