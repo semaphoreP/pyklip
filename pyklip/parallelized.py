@@ -354,7 +354,7 @@ def _klip_section_multifile_profiler(scidata_indices, wavelength, wv_index, numb
 
 def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, maxnumbasis, radstart, radend, phistart,
                             phiend, minmove, ref_center, minrot, maxrot, spectrum, mode, corr_smooth=1, psflib_good=None,
-                            psflib_corr=None, lite=False, dtype=None, algo='klip', verbose=True):
+                            psflib_corr=None, lite=False, dtype=None, algo='klip', verbose=True, process_indices=None):
     """
     Runs klip on a section of the image for all the images of a given wavelength.
     Bigger size of atomization of work than _klip_section but saves computation time and memory. Currently no need to
@@ -507,7 +507,13 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
     parangs = _arraytonumpy(img_pa, dtype=dtype)
     filenums = _arraytonumpy(img_filenums, dtype=dtype)
 
-    for file_index, parang, filenum in zip(scidata_indices, parangs[scidata_indices], filenums[scidata_indices]):
+    if process_indices is None:
+        loop_indices = scidata_indices
+    else:
+        loop_indices = process_indices
+    for file_index in loop_indices:
+        parang = parangs[file_index]
+        filenum = filenums[file_index]
         try:
             _klip_section_multifile_perfile(file_index, section_ind, ref_psfs_mean_sub, covar_psfs, corr_psfs,
                                             parang, filenum, wavelength, wv_index, (radstart + radend) / 2.0, numbasis,
@@ -867,8 +873,8 @@ def generate_noise_maps(imgs, aligned_center, dr, IWA=None, OWA=None, numthreads
 
 def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode='ADI+SDI', annuli=5, subsections=4,
                            movement=3, numbasis=None, aligned_center = None, numthreads=None, minrot=0, maxrot=360,
-                           annuli_spacing="constant", maxnumbasis=None, corr_smooth=1, 
-                           spectrum=None, dtype=None, algo='klip', compute_noise_cube=False, **kwargs):
+                           annuli_spacing="constant", maxnumbasis=None, corr_smooth=1,
+                           spectrum=None, dtype=None, algo='klip', compute_noise_cube=False, numchunks=None, min_chunk_size=25, **kwargs):
     """
     multithreaded KLIP PSF Subtraction, has a smaller memory foot print than the original
 
@@ -904,6 +910,10 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
         dtype: data type of the arrays. Should be either ctypes.c_float (default) or ctypes.c_double
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
+        numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+        min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
+                              excessive covariance recomputation.
 
     Returns:
         sub_imgs: array of [array of 2D images (PSF subtracted)] using different number of KL basis vectors as
@@ -967,6 +977,15 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
     #calculate how many iterations we need to do
     global tot_iter
     tot_iter = np.size(np.unique(wvs)) * len(phi_bounds) * len(rad_bounds)
+    if numthreads is not None:
+        effective_threads = numthreads
+    else:
+        effective_threads = mp.cpu_count()
+    if numchunks is None:
+        numchunks_target = max(1, effective_threads // tot_iter)
+    else:
+        numchunks_target = numchunks
+    tot_iter *= numchunks_target
 
     #before we start, create the output array in flattened form
     #sub_imgs = np.zeros([dims[0], dims[1] * dims[2], numbasis.shape[0]])
@@ -1050,15 +1069,30 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
         #perform KLIP asynchronously for each group of files of a specific wavelength and section of the image
         lite = True
 
+        effective_numchunks = min(numchunks_target, max(1, len(scidata_indices) // min_chunk_size))
+
         if not debug:
-            outputs += [tpool.apply_async(_klip_section_multifile,
-                                          args=(scidata_indices, this_wv, wv_index, numbasis,
-                                                maxnumbasis,
-                                                radstart, radend, phistart, phiend, movement,
-                                                aligned_center, minrot, maxrot, spectrum,
-                                                mode, corr_smooth, None, None, lite, dtype, algo))
-                        for phistart,phiend in phi_bounds
-                        for radstart, radend in rad_bounds]
+            if effective_numchunks > 1:
+                sci_chunks = np.array_split(scidata_indices, effective_numchunks)
+                outputs += [tpool.apply_async(_klip_section_multifile,
+                                              args=(scidata_indices, this_wv, wv_index, numbasis,
+                                                    maxnumbasis,
+                                                    radstart, radend, phistart, phiend, movement,
+                                                    aligned_center, minrot, maxrot, spectrum,
+                                                    mode, corr_smooth, None, None, lite, dtype, algo),
+                                              kwds={'process_indices': sci_chunk})
+                            for sci_chunk in sci_chunks
+                            for phistart, phiend in phi_bounds
+                            for radstart, radend in rad_bounds]
+            else:
+                outputs += [tpool.apply_async(_klip_section_multifile,
+                                              args=(scidata_indices, this_wv, wv_index, numbasis,
+                                                    maxnumbasis,
+                                                    radstart, radend, phistart, phiend, movement,
+                                                    aligned_center, minrot, maxrot, spectrum,
+                                                    mode, corr_smooth, None, None, lite, dtype, algo))
+                            for phistart,phiend in phi_bounds
+                            for radstart, radend in rad_bounds]
         else:
             outputs += [_klip_section_multifile(scidata_indices, this_wv, wv_index, numbasis,
                                                maxnumbasis,
@@ -1111,10 +1145,11 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
 
 
 def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode='ADI+SDI', annuli=5, subsections=4, movement=3,
-                      numbasis=None, aligned_center=None, numthreads=None, minrot=0, maxrot=360, 
+                      numbasis=None, aligned_center=None, numthreads=None, minrot=0, maxrot=360,
                       annuli_spacing="constant", maxnumbasis=None, corr_smooth=1,
                       spectrum=None, psf_library=None, psf_library_good=None, psf_library_corr=None,
-                      save_aligned = False, restored_aligned = None, dtype=None, algo='klip', compute_noise_cube=False, verbose = True):
+                      save_aligned = False, restored_aligned = None, dtype=None, algo='klip', compute_noise_cube=False, verbose = True,
+                      numchunks=None, min_chunk_size=25):
     """
     Multitprocessed KLIP PSF Subtraction
 
@@ -1155,6 +1190,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         dtype: data type of the arrays. Should be either ctypes.c_float(default) or ctypes.c_double
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
+        numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+        min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
+                              excessive covariance recomputation.
 
     Returns:
         sub_imgs: array of [array of 2D images (PSF subtracted)] using different number of KL basis vectors as
@@ -1253,6 +1292,15 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
     #calculate how many iterations we need to do
     global tot_iter
     tot_iter = np.size(np.unique(wvs)) * len(phi_bounds) * len(rad_bounds)
+    if numthreads is not None:
+        effective_threads = numthreads
+    else:
+        effective_threads = mp.cpu_count()
+    if numchunks is None:
+        numchunks_target = max(1, effective_threads // tot_iter)
+    else:
+        numchunks_target = numchunks
+    tot_iter *= numchunks_target
 
     #before we start, create the output array in flattened form
     #sub_imgs = np.zeros([dims[0], dims[1] * dims[2], numbasis.shape[0]])
@@ -1349,16 +1397,33 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         #perform KLIP asynchronously for each group of files of a specific wavelength and section of the image
         lite = False
 
+        effective_numchunks = min(numchunks_target, max(1, len(scidata_indices) // min_chunk_size))
+
         if not debug:
-            outputs += [tpool.apply_async(_klip_section_multifile, (scidata_indices, wv_value, wv_index, numbasis,
-                                                                        maxnumbasis,
-                                                                        radstart, radend, phistart, phiend, movement,
-                                                                        aligned_center, minrot, maxrot, spectrum,
-                                                                        mode, corr_smooth, 
-                                                                        psf_library_good, psf_library_corr, False,
-                                                                        dtype, algo, verbose))
-                        for phistart,phiend in phi_bounds
-                        for radstart, radend in rad_bounds]
+            if effective_numchunks > 1:
+                sci_chunks = np.array_split(scidata_indices, effective_numchunks)
+                outputs += [tpool.apply_async(_klip_section_multifile,
+                                              (scidata_indices, wv_value, wv_index, numbasis,
+                                               maxnumbasis,
+                                               radstart, radend, phistart, phiend, movement,
+                                               aligned_center, minrot, maxrot, spectrum,
+                                               mode, corr_smooth,
+                                               psf_library_good, psf_library_corr, False,
+                                               dtype, algo, verbose),
+                                              {'process_indices': sci_chunk})
+                            for sci_chunk in sci_chunks
+                            for phistart, phiend in phi_bounds
+                            for radstart, radend in rad_bounds]
+            else:
+                outputs += [tpool.apply_async(_klip_section_multifile, (scidata_indices, wv_value, wv_index, numbasis,
+                                                                            maxnumbasis,
+                                                                            radstart, radend, phistart, phiend, movement,
+                                                                            aligned_center, minrot, maxrot, spectrum,
+                                                                            mode, corr_smooth,
+                                                                            psf_library_good, psf_library_corr, False,
+                                                                            dtype, algo, verbose))
+                            for phistart,phiend in phi_bounds
+                            for radstart, radend in rad_bounds]
         else:
             outputs += [_klip_section_multifile(scidata_indices, wv_value, wv_index, numbasis,
                                                 maxnumbasis,
@@ -1416,9 +1481,9 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
 
 def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5, subsections=4, movement=3,
                  numbasis=None, numthreads=None, minrot=0, calibrate_flux=False, aligned_center=None,
-                 annuli_spacing="constant", maxnumbasis=None, corr_smooth=1, spectrum=None, psf_library=None, 
+                 annuli_spacing="constant", maxnumbasis=None, corr_smooth=1, spectrum=None, psf_library=None,
                  highpass=False, lite=False, save_aligned = False, restored_aligned = None, save_ints = False, dtype=None, algo='klip',
-                 skip_derot=False, time_collapse="mean", wv_collapse='mean', verbose = True):
+                 skip_derot=False, time_collapse="mean", wv_collapse='mean', verbose = True, numchunks=None, min_chunk_size=25):
     """
     run klip on a dataset class outputted by an implementation of Instrument.Data
 
@@ -1464,6 +1529,10 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         time_collapse:  how to collapse the data in time. Currently support: "mean", "weighted-mean", 'median', "weighted-median"
         wv_collapse:    how to collapse the data in wavelength. Currently support: 'median', 'mean', 'trimmed-mean'
         verbose (bool): if True, print warning messages during KLIP process.
+        numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+        min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
+                              excessive covariance recomputation.
 
     Returns
         Saved files in the output directory
@@ -1614,7 +1683,8 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
                     'spectrum':spectra_template, 'psf_library':master_library,
                     'psf_library_corr':rdi_corr_matrix, 'psf_library_good':rdi_good_psfs,
                     'save_aligned' : save_aligned, 'restored_aligned' : restored_aligned, 'dtype':dtype,
-                    'algo':algo, 'compute_noise_cube':weighted, 'verbose':verbose}
+                    'algo':algo, 'compute_noise_cube':weighted, 'verbose':verbose,
+                    'numchunks':numchunks, 'min_chunk_size':min_chunk_size}
 
     #Set MLK parameters
     if mkl_exists:
