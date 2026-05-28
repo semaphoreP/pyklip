@@ -507,7 +507,10 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
     parangs = _arraytonumpy(img_pa, dtype=dtype)
     filenums = _arraytonumpy(img_filenums, dtype=dtype)
 
-    loop_indices = scidata_indices if process_indices is None else process_indices
+    if process_indices is None:
+        loop_indices = scidata_indices
+    else:
+        loop_indices = process_indices
     for file_index in loop_indices:
         parang = parangs[file_index]
         filenum = filenums[file_index]
@@ -908,7 +911,9 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
         numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
-                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+                         parallelism. None (default) auto-detects: chunks only when wavelengths × sectors <
+                         numthreads (i.e., idle threads exist); otherwise set to 1 to avoid redundant
+                         covariance recomputation.
         min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
                               excessive covariance recomputation.
 
@@ -974,8 +979,18 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
     #calculate how many iterations we need to do
     global tot_iter
     tot_iter = np.size(np.unique(wvs)) * len(phi_bounds) * len(rad_bounds)
-    effective_threads = numthreads if numthreads is not None else mp.cpu_count()
-    numchunks_target = max(1, effective_threads // tot_iter) if numchunks is None else numchunks
+    if numthreads is not None:
+        effective_threads = numthreads
+    else:
+        effective_threads = mp.cpu_count()
+    if numchunks is None:
+        # only chunk when tot_iter leaves idle threads; otherwise covariance recomputation is wasted
+        if tot_iter < effective_threads:
+            numchunks_target = max(1, effective_threads // tot_iter)
+        else:
+            numchunks_target = 1
+    else:
+        numchunks_target = numchunks
     tot_iter *= numchunks_target
 
     #before we start, create the output array in flattened form
@@ -1182,7 +1197,9 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
         numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
-                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+                         parallelism. None (default) auto-detects: chunks only when wavelengths × sectors <
+                         numthreads (i.e., idle threads exist); otherwise set to 1 to avoid redundant
+                         covariance recomputation.
         min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
                               excessive covariance recomputation.
 
@@ -1283,8 +1300,18 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
     #calculate how many iterations we need to do
     global tot_iter
     tot_iter = np.size(np.unique(wvs)) * len(phi_bounds) * len(rad_bounds)
-    effective_threads = numthreads if numthreads is not None else mp.cpu_count()
-    numchunks_target = max(1, effective_threads // tot_iter) if numchunks is None else numchunks
+    if numthreads is not None:
+        effective_threads = numthreads
+    else:
+        effective_threads = mp.cpu_count()
+    if numchunks is None:
+        # only chunk when tot_iter leaves idle threads; otherwise covariance recomputation is wasted
+        if tot_iter < effective_threads:
+            numchunks_target = max(1, effective_threads // tot_iter)
+        else:
+            numchunks_target = 1
+    else:
+        numchunks_target = numchunks
     tot_iter *= numchunks_target
 
     #before we start, create the output array in flattened form
@@ -1515,7 +1542,9 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         wv_collapse:    how to collapse the data in wavelength. Currently support: 'median', 'mean', 'trimmed-mean'
         verbose (bool): if True, print warning messages during KLIP process.
         numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
-                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+                         parallelism. None (default) auto-detects: chunks only when wavelengths × sectors <
+                         numthreads (i.e., idle threads exist); otherwise set to 1 to avoid redundant
+                         covariance recomputation.
         min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
                               excessive covariance recomputation.
 
