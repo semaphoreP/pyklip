@@ -4,7 +4,6 @@ author: johan mazoyer
 # pylint: disable=C0103
 import os
 import glob
-import distutils.dir_util
 import shutil
 
 import numpy as np
@@ -74,7 +73,8 @@ def run_test_diskFM(just_loading=False, nwls=1, annulitest=1):
     dataset = GPI.GPIData(filelist, quiet=True)
 
     diskfm_dir = os.path.join(TESTDIR, 'diskfm_dir')
-    distutils.dir_util.mkpath(diskfm_dir)
+    if not os.path.exists(diskfm_dir):
+        os.mkdir(diskfm_dir)
 
     # set a few parameters
     mov_here = 8

@@ -2,7 +2,7 @@
 # Only use spaces to indent your .yml configuration.
 # -----
 # You can specify a custom docker image from Dockerhub as your build environment
-image: continuumio/anaconda3
+image: python
 
 options:
   max-time: 20 # configure default 20 minute timeout
@@ -23,20 +23,23 @@ pipelines:
           # - ls pyklip
           - ls pyklip/instruments
 
-          # install some more dependencies
-          - pip install emcee
-          - pip install corner
-
           # install pyklip
           - pip install -e .
 
-          # setup coveralls
-          - pip install coveralls
+          # not sure why, but need to manually install h5py
+          - pip install h5py
           # conda photutils is not happy with python 3.7. install manually for now
           #- conda install -y -c astropy photutils
-          - apt-get update # make sure it can find gcc
-          - apt-get install -y gcc
+          # - apt-get update # make sure it can find gcc
+          # - apt-get install -y gcc
           - pip install photutils
+
+
+          # setup coveralls
+          - pip install coveralls
+
+          # setup pytest
+          - pip install pytest
 
           #Coverage and Coverall hooking
           - coverage run --source ./pyklip -m pytest
