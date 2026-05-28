@@ -6,3 +6,4 @@ emcee
 corner
 astroquery
 tqdm
+h5py
