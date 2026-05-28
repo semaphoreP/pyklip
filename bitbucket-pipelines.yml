@@ -26,10 +26,12 @@ pipelines:
           # install pyklip
           - pip install -e .
 
+          # not sure why, but need to manually install h5py
+          - pip install h5py
           # conda photutils is not happy with python 3.7. install manually for now
           #- conda install -y -c astropy photutils
-          - apt-get update # make sure it can find gcc
-          - apt-get install -y gcc
+          # - apt-get update # make sure it can find gcc
+          # - apt-get install -y gcc
           - pip install photutils
 
 
