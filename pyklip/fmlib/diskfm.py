@@ -458,7 +458,7 @@ class DiskFM(NoFM):
             self.klparam_dict['OWA'] = float(OWA)
 
             self.klparam_dict['input_img_shape'] = np.array(input_img_shape, dtype=float)
-            self.klparam_dict['numbasis'] = float(numbasis)
+            self.klparam_dict['numbasis'] = float(np.atleast_1d(numbasis)[0])  # numpy 2.0 disallows float() on non-0d arrays
             self.klparam_dict['output_imgs_shape'] = np.array(output_img_shape, dtype=float)
 
             # To have a single identifier for each set of aligned images,
