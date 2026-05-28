@@ -246,6 +246,40 @@ def test_klip_dataset_error_checking():
         parallelized.klip_dataset(dataset, outputdir=testdir, fileprefix="ADIonly-1file", annuli=annuli,
                             subsections=subsections, numbasis=numbasis, maxnumbasis=maxnumbasis, mode="ADI")
     
+def test_chunk_parallelization_bitwise_identical():
+    """
+    Tests that image-chunk parallelization produces bitwise identical output to the
+    unchunked case. Runs klip_dataset with numchunks=1 and numchunks=3, min_chunk_size=1
+    (forcing each of the 3 test images into its own chunk) and asserts the output arrays
+    are exactly equal. Tests both the lite and non-lite code paths.
+
+    Uses spectral_collapse to reduce to 2 wavelengths for speed.
+    """
+    filelist = glob.glob(testdir + os.path.join("data", "S20131210*distorcorr.fits"))
+    assert len(filelist) == 3
+
+    for lite in [True, False]:
+        dataset = GPI.GPIData(filelist, highpass=False)
+        dataset.spectral_collapse(collapse_channels=2, align_frames=False)
+
+        # unchunked baseline
+        parallelized.klip_dataset(dataset, annuli=1, subsections=1, movement=1,
+                                  numbasis=[1, 10], mode="ADI", lite=lite,
+                                  numchunks=1, outputdir=testdir,
+                                  fileprefix="chunk-test-nochunk")
+        out_nochunk = dataset.output.copy()
+
+        # chunked: 3 chunks of 1 image each; min_chunk_size=1 forces chunking
+        parallelized.klip_dataset(dataset, annuli=1, subsections=1, movement=1,
+                                  numbasis=[1, 10], mode="ADI", lite=lite,
+                                  numchunks=3, min_chunk_size=1, outputdir=testdir,
+                                  fileprefix="chunk-test-chunked")
+        out_chunked = dataset.output.copy()
+
+        np.testing.assert_array_equal(out_nochunk, out_chunked,
+                                      err_msg="lite={}: chunked output differs from unchunked".format(lite))
+
+
 if __name__ == "__main__":
     test_example_gpi_klip_dataset()
     #test_adi_gpi_klip_dataset_with_fakes_twice()
