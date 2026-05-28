@@ -27,6 +27,7 @@ class NoFM(object):
         # self.data_type = ctypes.c_double
         # Use float32
         self.data_type = ctypes.c_float
+        self.wvs_dtype = self.data_type # can be overridden if needed
 
         self.supports_rdi = False # while techncially true, this is a default for all other RDI classes that don't support RDI yet
 

@@ -3,6 +3,11 @@
 Release Notes
 ==============
 
+Version 2.9.1
+ * Fix bug with ADI not using frames at the same wavelength for numpy ~2.2.6 (Kayli Glidic, Jason Wang)
+ * Updated DiskFM docs to emphasize it only works with one KL mode cutoff. 
+ * Fix link in docs to example GPI datacubes
+
 Version 2.9
  * Fix several deprecation warnings (depedencies that will deprecate API in the future). 
  * BREAKING (minor): `FitPSF.sampler.chain` is no longer accessible due to changes in emcee v3. Use `FitPSF.mcmc_chain` instead. (Jason Wang).

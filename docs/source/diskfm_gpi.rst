@@ -108,11 +108,13 @@ DiskFM for MCMC or Chi-Square
 --------------------------
 For an MCMC or Chi-Square you can create the KL basis and then save them to forward
 model multiple models on a dataset without recomputing them every time.
+This is only possible with a single KL mode.
 If you would like save the KL basis then you will need to signal it during
 the initialization of the `DiskFM` object, then apply `fm.klip_dataset` to measure and
 ave the forward model KL basis and parameters:
 
 .. code-block:: python
+    numbasis = [3] 
 
     diskobj = DiskFM(dataset.input.shape, numbasis, dataset,
                     disk_model_convolved, aligned_center=aligned_center,
@@ -175,13 +177,6 @@ disk forward model:
 .. code-block:: python
 
     dataset.spectral_collapse(collapse_channels=1, align_frames=True)
-
-* determine the best KL number parameters in advance and use only one, e.g.:
-
-.. code-block:: python
-
-    numbasis = [3]
-
 
 Finally, due to the fact that numpy also parallelizes linear algebra routines
 across multiple cores, performance can actually sharply decrease when multiprocessing
