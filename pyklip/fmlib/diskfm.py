@@ -138,10 +138,16 @@ class DiskFM(NoFM):
 
         if self.load_from_basis:
             # Its useless to save and load at the same time.
+            if len(numbasis) > 1:
+                raise ValueError("Saving and loading KL basis only available for a single KL mode: len(numbasis)=1")
+
             self.save_basis = False
             save_basis = False
 
         if self.save_basis is True:
+            if len(numbasis) > 1:
+                raise ValueError("Saving and loading KL basis only available for a single KL mode: len(numbasis)=1")
+
             manager = mp.Manager()
             self.klmodes_dict = manager.dict()
             self.evecs_dict = manager.dict()
@@ -452,7 +458,7 @@ class DiskFM(NoFM):
             self.klparam_dict['OWA'] = float(OWA)
 
             self.klparam_dict['input_img_shape'] = np.array(input_img_shape, dtype=float)
-            self.klparam_dict['numbasis'] = float(numbasis)
+            self.klparam_dict['numbasis'] = float(np.atleast_1d(numbasis)[0])  # numpy 2.0 disallows float() on non-0d arrays
             self.klparam_dict['output_imgs_shape'] = np.array(output_img_shape, dtype=float)
 
             # To have a single identifier for each set of aligned images,
