@@ -871,7 +871,7 @@ def generate_noise_maps(imgs, aligned_center, dr, IWA=None, OWA=None, numthreads
 def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode='ADI+SDI', annuli=5, subsections=4,
                            movement=3, numbasis=None, aligned_center = None, numthreads=None, minrot=0, maxrot=360,
                            annuli_spacing="constant", maxnumbasis=None, corr_smooth=1,
-                           spectrum=None, dtype=None, algo='klip', compute_noise_cube=False, numchunks=None, min_chunk_size=100, **kwargs):
+                           spectrum=None, dtype=None, algo='klip', compute_noise_cube=False, numchunks=None, min_chunk_size=25, **kwargs):
     """
     multithreaded KLIP PSF Subtraction, has a smaller memory foot print than the original
 
@@ -907,6 +907,10 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
         dtype: data type of the arrays. Should be either ctypes.c_float (default) or ctypes.c_double
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
+        numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+        min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
+                              excessive covariance recomputation.
 
     Returns:
         sub_imgs: array of [array of 2D images (PSF subtracted)] using different number of KL basis vectors as
@@ -1136,7 +1140,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
                       annuli_spacing="constant", maxnumbasis=None, corr_smooth=1,
                       spectrum=None, psf_library=None, psf_library_good=None, psf_library_corr=None,
                       save_aligned = False, restored_aligned = None, dtype=None, algo='klip', compute_noise_cube=False, verbose = True,
-                      numchunks=None, min_chunk_size=100):
+                      numchunks=None, min_chunk_size=25):
     """
     Multitprocessed KLIP PSF Subtraction
 
@@ -1177,6 +1181,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         dtype: data type of the arrays. Should be either ctypes.c_float(default) or ctypes.c_double
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
+        numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+        min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
+                              excessive covariance recomputation.
 
     Returns:
         sub_imgs: array of [array of 2D images (PSF subtracted)] using different number of KL basis vectors as
@@ -1460,7 +1468,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
                  numbasis=None, numthreads=None, minrot=0, calibrate_flux=False, aligned_center=None,
                  annuli_spacing="constant", maxnumbasis=None, corr_smooth=1, spectrum=None, psf_library=None,
                  highpass=False, lite=False, save_aligned = False, restored_aligned = None, save_ints = False, dtype=None, algo='klip',
-                 skip_derot=False, time_collapse="mean", wv_collapse='mean', verbose = True, numchunks=None, min_chunk_size=100):
+                 skip_derot=False, time_collapse="mean", wv_collapse='mean', verbose = True, numchunks=None, min_chunk_size=25):
     """
     run klip on a dataset class outputted by an implementation of Instrument.Data
 
@@ -1506,6 +1514,10 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         time_collapse:  how to collapse the data in time. Currently support: "mean", "weighted-mean", 'median', "weighted-median"
         wv_collapse:    how to collapse the data in wavelength. Currently support: 'median', 'mean', 'trimmed-mean'
         verbose (bool): if True, print warning messages during KLIP process.
+        numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
+        min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
+                              excessive covariance recomputation.
 
     Returns
         Saved files in the output directory
