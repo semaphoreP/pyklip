@@ -911,9 +911,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
         numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
-                         parallelism. None (default) auto-detects: chunks only when wavelengths × sectors <
-                         numthreads (i.e., idle threads exist); otherwise set to 1 to avoid redundant
-                         covariance recomputation.
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
         min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
                               excessive covariance recomputation.
 
@@ -984,11 +982,7 @@ def klip_parallelized_lite(imgs, centers, parangs, wvs, filenums, IWA, OWA=None,
     else:
         effective_threads = mp.cpu_count()
     if numchunks is None:
-        # only chunk when tot_iter leaves idle threads; otherwise covariance recomputation is wasted
-        if tot_iter < effective_threads:
-            numchunks_target = max(1, effective_threads // tot_iter)
-        else:
-            numchunks_target = 1
+        numchunks_target = max(1, effective_threads // tot_iter)
     else:
         numchunks_target = numchunks
     tot_iter *= numchunks_target
@@ -1197,9 +1191,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
         algo (str): algorithm to use ('klip', 'nmf', 'empca','nmf_jax')
         compute_noise_cube:  if True, compute the noise in each pixel assuming azimuthally uniform noise
         numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
-                         parallelism. None (default) auto-detects: chunks only when wavelengths × sectors <
-                         numthreads (i.e., idle threads exist); otherwise set to 1 to avoid redundant
-                         covariance recomputation.
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
         min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
                               excessive covariance recomputation.
 
@@ -1305,11 +1297,7 @@ def klip_parallelized(imgs, centers, parangs, wvs, filenums, IWA, OWA=None, mode
     else:
         effective_threads = mp.cpu_count()
     if numchunks is None:
-        # only chunk when tot_iter leaves idle threads; otherwise covariance recomputation is wasted
-        if tot_iter < effective_threads:
-            numchunks_target = max(1, effective_threads // tot_iter)
-        else:
-            numchunks_target = 1
+        numchunks_target = max(1, effective_threads // tot_iter)
     else:
         numchunks_target = numchunks
     tot_iter *= numchunks_target
@@ -1542,9 +1530,7 @@ def klip_dataset(dataset, mode='ADI+SDI', outputdir=".", fileprefix="", annuli=5
         wv_collapse:    how to collapse the data in wavelength. Currently support: 'median', 'mean', 'trimmed-mean'
         verbose (bool): if True, print warning messages during KLIP process.
         numchunks (int): number of image chunks to split each (wavelength, sector) task into for additional
-                         parallelism. None (default) auto-detects: chunks only when wavelengths × sectors <
-                         numthreads (i.e., idle threads exist); otherwise set to 1 to avoid redundant
-                         covariance recomputation.
+                         parallelism. None (default) auto-detects based on numthreads // tot_iter.
         min_chunk_size (int): minimum number of images per chunk (default 25). Limits chunking to avoid
                               excessive covariance recomputation.
 
