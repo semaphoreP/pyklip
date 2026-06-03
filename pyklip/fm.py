@@ -1594,6 +1594,9 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     # if no ADI, don't use other parallactic angles
     if "ADI" not in mode.upper():
         goodmv = (goodmv) & (pa_imgs == parang)
+    # if both aren't in here, we shouldn't be using any frames in the sequence
+    if "ADI" not in mode.upper() and "SDI" not in mode.upper():
+        goodmv = (goodmv) & False
     include_rdi = "RDI" in mode.upper()
     
     # if minrot > 0:
