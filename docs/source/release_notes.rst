@@ -3,6 +3,11 @@
 Release Notes
 ==============
 
+Version 2.10
+ * Add file-level parallelization to klip_dataset via new numchunks and min_chunk_size parameters. This provides a third axis of parallelism (alongside wavelength and sector) by processing KLIP by image chunks. (Jason Wang)
+ * Fix numpy v2 TypeError in DiskFM when saving the KL basis, based on issue from Eckhart Spalding (Jason Wang)
+ * Fix fm.py issue where ADI frames at same parang were being used when mode="RDI" only (Jason Wang)
+
 Version 2.9.1
  * Fix bug with ADI not using frames at the same wavelength for numpy ~2.2.6 (Kayli Glidic, Jason Wang)
  * Updated DiskFM docs to emphasize it only works with one KL mode cutoff. 
