@@ -140,6 +140,8 @@ class FitPSF(object):
         # cheeck the padding to make sure it's valid
         if not isinstance(padding, int):
             raise TypeError("padding must be an integer")
+        if padding < 0:
+            raise ValueError("padding must be >= 0")
         if padding < 1:
             warnings.warn("Padding really should be >= 1 pixel so we can shift the FM around", RuntimeWarning)
         self.padding = padding
@@ -161,6 +163,19 @@ class FitPSF(object):
         # now we found the FM in the image, extract out a centered stamp of it
         # grab the coordinates of the image
         stampsize = 2 * self.padding + self.fitboxsize # full stamp needs padding around all sides
+
+        # check that the stamp region fits within the image
+        x_min_stamp = psf_xpos - stampsize // 2
+        x_max_stamp = psf_xpos + stampsize - 1 - stampsize // 2
+        y_min_stamp = psf_ypos - stampsize // 2
+        y_max_stamp = psf_ypos + stampsize - 1 - stampsize // 2
+        if x_min_stamp < 0 or x_max_stamp >= fm_image.shape[1] or \
+           y_min_stamp < 0 or y_max_stamp >= fm_image.shape[0]:
+            raise ValueError(
+                "FM stamp (size {0}x{0}) centered at ({1}, {2}) extends outside fm_image "
+                "bounds {3}. Reduce padding or fitboxsize, or check fm_pos.".format(
+                    stampsize, psf_xpos, psf_ypos, fm_image.shape)
+            )
         x_stamp, y_stamp = np.meshgrid(np.arange(stampsize * 1.) - stampsize //2,
                                        np.arange(stampsize * 1.) - stampsize// 2)
 
@@ -210,6 +225,15 @@ class FitPSF(object):
             # for even fitbox sizes, need to truncate ymax/xmax by 1
             ymax -= 1
             xmax -= 1
+
+        # check that the stamp region is within the data bounds
+        if ymin < 0 or xmin < 0 or ymax > data.shape[0] or xmax > data.shape[1]:
+            raise ValueError(
+                "Data stamp extends outside image bounds. "
+                "guess_loc ({0}, {1}) is too close to the edge for fitboxsize={2} "
+                "in an image of shape {3}.".format(
+                    xguess_round, yguess_round, self.fitboxsize, data.shape)
+            )
 
         data_stamp = data[ymin:ymax, xmin:xmax]
         self.data_stamp = data_stamp
@@ -1098,6 +1122,13 @@ def quick_psf_fit(data, psf, x_guess, y_guess, fitboxsize):
     fit = FitPSF(fitboxsize, method='maxl')
 
     padding = int((np.min(psf.shape) - fitboxsize) // 2)
+    if padding < 1:
+        raise ValueError(
+            "PSF stamp (size {0}) is too small for fitboxsize={1}. "
+            "PSF must be at least fitboxsize + 2 = {2} pixels in its smallest "
+            "dimension to allow padding >= 1.".format(
+                np.min(psf.shape), fitboxsize, fitboxsize + 2)
+        )
     fit.generate_fm_stamp(psf, extract=False, padding=padding)
 
     fit.generate_data_stamp(data, [x_guess, y_guess], np.ones(data.shape))
