@@ -258,17 +258,17 @@ class ExtractSpec(NoFM):
                     psf_func(x_vec_stamp_centered,y_vec_stamp_centered).transpose()
 
             # write model img to output (segment is collapsed in x/y so need to reshape)
-            whiteboard.shape = [input_img_shape[0] * input_img_shape[1]]
+            whiteboard = np.reshape(whiteboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
             segment_with_model = copy(whiteboard[section_ind])
-            whiteboard.shape = [input_img_shape[0],input_img_shape[1]]
+            whiteboard = np.reshape(whiteboard, [input_img_shape[0],input_img_shape[1]], copy=False)
 
             models.append(segment_with_model)
             if stamp_size is not None:
                 # These are actually indices of indices. they indicate which indices correspond to the stamp in section_ind
                 stamp_mask[int(k-row_m_stamp):int(k+row_p_stamp), int(l-col_m_stamp):int(l+col_p_stamp)] = 1
-                stamp_mask.shape = [nx*ny]
+                stamp_mask = np.reshape(stamp_mask, [nx*ny], copy=False)
                 stamp_indices.append(np.where(stamp_mask[section_ind] == 1)[0])
-                stamp_mask.shape = [ny,nx]
+                stamp_mask = np.reshape(stamp_mask, [ny,nx], copy=False)
                 stamp_mask[int(k-row_m_stamp):int(k+row_p_stamp), int(l-col_m_stamp):int(l+col_p_stamp)] = 0
 
         if stamp_size is not None:
@@ -447,7 +447,7 @@ def invert_spect_fmodel(fmout, dataset, method = "JB", units = "natural",
             #JBR's matrix inversion adds up over all exposures, then inverts
             #
             #Back to a 2D array pixel array in the middle
-            fm_noSpec_coadd.shape = [int(nl),stamp_N_pix, int(nl)]
+            fm_noSpec_coadd = np.reshape(fm_noSpec_coadd, [int(nl),stamp_N_pix, int(nl)], copy=False)
             # Flatten over first 3 dims for the FM matrix to solve FM*spect = klipped
             fm_noSpec_coadd_mat = np.reshape(fm_noSpec_coadd,(int(nl*stamp_N_pix),int(nl)))
             # Invert the FM matrix
@@ -476,7 +476,7 @@ def invert_spect_fmodel(fmout, dataset, method = "JB", units = "natural",
             # instead of matrix inversions
             
             #Back to a 2D array pixel array in the middle
-            fm_noSpec_coadd.shape = [int(nl),stamp_N_pix,int(nl)]
+            fm_noSpec_coadd = np.reshape(fm_noSpec_coadd, [int(nl),stamp_N_pix,int(nl)], copy=False)
             # Flatten over first 3 dims for the FM matrix to solve FM*spect = klipped
             fm_noSpec_coadd_mat = np.reshape(fm_noSpec_coadd,(int(nl*stamp_N_pix),int(nl)))
             # Saving the coadded FM

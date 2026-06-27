@@ -180,7 +180,7 @@ def _arraytonumpy(shared_array, shape=None, dtype=None):
 
     numpy_array = np.frombuffer(shared_array.get_obj(), dtype=dtype)
     if shape is not None:
-        numpy_array.shape = shape
+        numpy_array = np.reshape(numpy_array, shape, copy=False)
 
     return numpy_array
 
@@ -280,8 +280,8 @@ def _klip_section(img_num, parang, wavelength, wv_index, numbasis, radstart, rad
 
     #create a coordinate system
     x, y = np.meshgrid(np.arange(original_shape[2] * 1.0), np.arange(original_shape[1] * 1.0))
-    x.shape = (x.shape[0] * x.shape[1])
-    y.shape = (y.shape[0] * y.shape[1])
+    x = np.reshape(x, (x.shape[0] * x.shape[1],), copy=False)
+    y = np.reshape(y, (y.shape[0] * y.shape[1],), copy=False)
     r = np.sqrt((x - ref_center[0])**2 + (y - ref_center[1])**2)
     phi = np.arctan2(y - ref_center[1], x - ref_center[0])
 
@@ -394,8 +394,8 @@ def _klip_section_multifile(scidata_indices, wavelength, wv_index, numbasis, max
 
     #create a coordinate system. Can use same one for all the images because they have been aligned and scaled
     x, y = np.meshgrid(np.arange(original_shape[2] * 1.0), np.arange(original_shape[1] * 1.0))
-    x.shape = (x.shape[0] * x.shape[1]) #Flatten
-    y.shape = (y.shape[0] * y.shape[1])
+    x = np.reshape(x, (x.shape[0] * x.shape[1],), copy=False) #Flatten
+    y = np.reshape(y, (y.shape[0] * y.shape[1],), copy=False)
     r, phi = klip.make_polar_coordinates(x, y, ref_center) #flattened polar coordinates
 
     #grab the pixel location of the section we are going to anaylze

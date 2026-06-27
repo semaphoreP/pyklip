@@ -339,9 +339,9 @@ def nan_map_coordinates_2d(img, yp, xp, mc_kwargs=None):
 
     # mask nans
     img_shape = transformed_img.shape
-    transformed_img.shape = [img_shape[0] * img_shape[1]]
+    transformed_img = np.reshape(transformed_img, [img_shape[0] * img_shape[1]], copy=False)
     transformed_img[rotnans] = np.nan
-    transformed_img.shape = img_shape
+    transformed_img = np.reshape(transformed_img, img_shape, copy=False)
 
     return transformed_img
 

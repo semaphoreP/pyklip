@@ -836,8 +836,8 @@ def _get_section_indicies(input_shape, img_center, radstart, radend, phistart, p
     # create a coordinate system.
     x, y = np.meshgrid(np.arange(input_shape[1] * 1.0), np.arange(input_shape[0] * 1.0))
     if flatten:
-        x.shape = (x.shape[0] * x.shape[1]) # Flatten
-        y.shape = (y.shape[0] * y.shape[1])
+        x = np.reshape(x, (x.shape[0] * x.shape[1],), copy=False) # Flatten
+        y = np.reshape(y, (y.shape[0] * y.shape[1],), copy=False)
     if flipx:
         x = img_center[0] - (x - img_center[0])        
     r = np.sqrt((x - img_center[0])**2 + (y - img_center[1])**2)
@@ -952,7 +952,7 @@ def _save_rotated_section(input_shape, sector, sector_ind, output_img, output_im
     dims = input_shape
     blank_input = np.zeros(dims[1] * dims[0])
     blank_input[sector_ind] = sector
-    blank_input.shape = [dims[0], dims[1]]
+    blank_input = np.reshape(blank_input, [dims[0], dims[1]], copy=False)
 
     xp_floor = np.clip(np.floor(xp).astype(int), 0, xp.shape[1]-1)[rot_sector_pix]
     xp_ceil = np.clip(np.ceil(xp).astype(int), 0, xp.shape[1]-1)[rot_sector_pix]
@@ -977,19 +977,19 @@ def _save_rotated_section(input_shape, sector, sector_ind, output_img, output_im
     # need to define only where the non nan pixels are, so we can store those in the output image
     blank_output = np.zeros([dims[0], dims[1]]) * np.nan
     blank_output[rot_sector_pix] = rot_sector
-    blank_output.shape = (dims[0], dims[1])
+    blank_output = np.reshape(blank_output, (dims[0], dims[1]), copy=False)
     rot_sector_validpix_2d = np.where(~np.isnan(blank_output))
 
     # save output sector. We need to reshape the array into 2d arrays to save it
-    output_img.shape = [outputs_shape[1], outputs_shape[2]]
+    output_img = np.reshape(output_img, [outputs_shape[1], outputs_shape[2]], copy=False)
     output_img[rot_sector_validpix_2d] = np.nansum([output_img[rot_sector_pix][sector_validpix], rot_sector[sector_validpix]], axis=0)
-    output_img.shape = [outputs_shape[1] * outputs_shape[2]]
+    output_img = np.reshape(output_img, [outputs_shape[1] * outputs_shape[2]], copy=False)
 
     # Increment the numstack counter if it is not None
     if output_img_numstacked is not None:
-        output_img_numstacked.shape = [outputs_shape[1], outputs_shape[2]]
+        output_img_numstacked = np.reshape(output_img_numstacked, [outputs_shape[1], outputs_shape[2]], copy=False)
         output_img_numstacked[rot_sector_validpix_2d] += 1
-        output_img_numstacked.shape = [outputs_shape[1] *  outputs_shape[2]]
+        output_img_numstacked = np.reshape(output_img_numstacked, [outputs_shape[1] * outputs_shape[2]], copy=False)
 
 
 def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, OWA=None, mode='ADI+SDI', annuli=5, 

@@ -28,8 +28,8 @@ class klip_functions_TestCase(unittest.TestCase):
     def test_make_polar_coordinates(self):
 
         x, y = np.meshgrid(np.arange(10), np.arange(10))
-        x.shape = (x.shape[0]*x.shape[1])
-        y.shape = (y.shape[0]*y.shape[1])
+        x = np.reshape(x, (x.shape[0]*x.shape[1],), copy=False)
+        y = np.reshape(y, (y.shape[0]*y.shape[1],), copy=False)
 
         # test for center at [0,0]
         center = [0, 0]
