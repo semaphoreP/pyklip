@@ -4,6 +4,11 @@ Release Notes
 ==============
 
 Version 2.10
+ * Fix deprecation of manual setting of `numpy.array.shape`. Now `numpy.reshape()` is always used.
+ * FitPSF now raises an error if trying to fit too close to the edge of the image
+ * Data class has `pad_input` and `pad_output` functions to pad the sides with NaNs
+
+Version 2.10
  * Add file-level parallelization to klip_dataset via new numchunks and min_chunk_size parameters. This provides a third axis of parallelism (alongside wavelength and sector) by processing KLIP by image chunks. (Jason Wang)
  * Fix numpy v2 TypeError in DiskFM when saving the KL basis, based on issue from Eckhart Spalding (Jason Wang)
  * Fix fm.py issue where ADI frames at same parang were being used when mode="RDI" only (Jason Wang)
