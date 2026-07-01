@@ -225,7 +225,7 @@ Recall the klipped data is in fmout::
     for ll in range(N_cubes):
         klipped_coadd = klipped_coadd + klipped_data[0, ll*nl:(ll+1)*nl, :]
     # turn it back into a 2D arrat at each wavelength, k_klip
-    klipped_coadd.shape = [nl, int(stamp_size), int(stamp_size)]
+    klipped_coadd = np.reshape(klipped_coadd, [nl, int(stamp_size), int(stamp_size)], copy=False)
     # summed over each wavelength channel, but you can view them individually
     plt.imshow(klipped_coadd.sum(axis=0), interpolation="nearest")
     plt.colorbar()

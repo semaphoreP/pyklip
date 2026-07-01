@@ -214,6 +214,7 @@ class Data(object):
         """
         return NotImplementedError("Subclass needs to implement this!")
     
+
     def spectral_collapse(self, collapse_channels=1, align_frames=True, aligned_center=None, numthreads=None, additional_params=None):
             """
             Collapses the dataset spectrally, bining the data into the desired number of output wavelengths. 
@@ -279,7 +280,7 @@ class Data(object):
 
                     # reform back into a giant array
                     derotated = np.array([task.get() for task in tasks])
-                    derotated.shape = (Ncubes, slices_this_group, self.input.shape[1], self.input.shape[2])
+                    derotated = np.reshape(derotated, (Ncubes, slices_this_group, self.input.shape[1], self.input.shape[2]), copy=False)
                     input_4d[:, i_start:i_end, :, :] = derotated
 
                 # Remove annoying RuntimeWarnings when input_4d is all nans
@@ -312,10 +313,10 @@ class Data(object):
                 next_start_channel = i_end
 
             # unravel the wavelength information
-            collapsed_4d.shape = [Ncubes * collapse_channels, self.input.shape[1], self.input.shape[2]]
-            wvs_collapsed.shape = [Ncubes * collapse_channels]
-            pas_collapsed.shape = [Ncubes * collapse_channels]
-            centers_collapsed.shape = [Ncubes * collapse_channels, 2]
+            collapsed_4d = np.reshape(collapsed_4d, [Ncubes * collapse_channels, self.input.shape[1], self.input.shape[2]], copy=False)
+            wvs_collapsed = np.reshape(wvs_collapsed, [Ncubes * collapse_channels], copy=False)
+            pas_collapsed = np.reshape(pas_collapsed, [Ncubes * collapse_channels], copy=False)
+            centers_collapsed = np.reshape(centers_collapsed, [Ncubes * collapse_channels, 2], copy=False)
 
             # unfold the lists, need to flip the dimensions, so they are ordered properly
             wcs_collapsed = np.array(wcs_collapsed).T.ravel()
@@ -334,7 +335,7 @@ class Data(object):
 
             if additional_params is not None:
                 for param_field, param_collapsed in zip(additional_params, additional_collapsed):
-                    param_collapsed.shape = (Ncubes * collapse_channels, ) + param_collapsed.shape[2:]
+                    param_collapsed = np.reshape(param_collapsed, (Ncubes * collapse_channels, ) + param_collapsed.shape[2:], copy=False)
                     setattr(self, param_field, param_collapsed)
 
 
@@ -491,7 +492,7 @@ class GenericData(Data):
                 if np.size(dims) > 2:
                     nframes = np.prod(dims[:-2])
                     # collapse in all dimensions except y and x
-                    data.shape = (nframes, dims[-2], dims[-1])
+                    data = np.reshape(data, (nframes, dims[-2], dims[-1]), copy=False)
 
                 input_data.append(data)
 
@@ -501,7 +502,7 @@ class GenericData(Data):
         if np.size(dims) > 3:
             nframes = np.prod(dims[:-2])
             # collapse in all dimensions except y and x
-            input_data.shape = (nframes, dims[-2], dims[-1])
+            input_data = np.reshape(input_data, (nframes, dims[-2], dims[-1]), copy=False)
 
 
     def savedata(self, filepath, data, klipparams=None, filetype="", zaxis=None, more_keywords=None):

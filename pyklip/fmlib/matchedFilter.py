@@ -356,14 +356,14 @@ class MatchedFilter(NoFM):
 
         if self.save_bbfm:
             fmout1 = fmout[:4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx]
-            fmout1.shape = (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx)
+            fmout1 = np.reshape(fmout1, (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx), copy=False)
             fmout2 = fmout[4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx::]
-            fmout2.shape = (self.ny,self.nx,2*self.planet_radius,2*self.planet_radius)
+            fmout2 = np.reshape(fmout2, (self.ny,self.nx,2*self.planet_radius,2*self.planet_radius), copy=False)
         elif self.save_fm:
             fmout1 = fmout[:4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx]
-            fmout1.shape = (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx)
+            fmout1 = np.reshape(fmout1, (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx), copy=False)
             fmout2 = fmout[4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx::]
-            fmout2.shape = (self.N_frames,self.ny,self.nx,2*self.planet_radius,2*self.planet_radius)
+            fmout2 = np.reshape(fmout2, (self.N_frames,self.ny,self.nx,2*self.planet_radius,2*self.planet_radius), copy=False)
         else:
             fmout1 = fmout
 
@@ -610,9 +610,9 @@ class MatchedFilter(NoFM):
                 fmout1[3,spec_id,N_KL_id,input_img_num,row_id,col_id] = npix
 
                 if self.save_bbfm:
-                    greenboard.shape = [input_img_shape[0] * input_img_shape[1]]
+                    greenboard = np.reshape(greenboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
                     greenboard[section_ind[0][where_fk]] = postklip_psf[N_KL_id,:]
-                    greenboard.shape = [input_img_shape[0],input_img_shape[1]]
+                    greenboard = np.reshape(greenboard, [input_img_shape[0],input_img_shape[1]], copy=False)
 
                     rot_stamp = ndimage.map_coordinates(greenboard,
                                                         [yp[(row_id-self.bbfm_m):(row_id+self.bbfm_p),
@@ -620,13 +620,13 @@ class MatchedFilter(NoFM):
                                                          xp[(row_id-self.bbfm_m):(row_id+self.bbfm_p),
                                                             (col_id-self.bbfm_m):(col_id+self.bbfm_p)].ravel()],
                                                         cval=np.nan)
-                    rot_stamp.shape = [2*self.planet_radius,2*self.planet_radius]
+                    rot_stamp = np.reshape(rot_stamp, [2*self.planet_radius,2*self.planet_radius], copy=False)
 
                     fmout2[row_id,col_id,:,:] = fmout2[row_id,col_id,:,:]+rot_stamp
                 elif self.save_fm:
-                    greenboard.shape = [input_img_shape[0] * input_img_shape[1]]
+                    greenboard = np.reshape(greenboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
                     greenboard[section_ind[0][where_fk]] = postklip_psf[N_KL_id,:]
-                    greenboard.shape = [input_img_shape[0],input_img_shape[1]]
+                    greenboard = np.reshape(greenboard, [input_img_shape[0],input_img_shape[1]], copy=False)
                     greenboard_pad = np.pad(greenboard,((self.bbfm_m,self.bbfm_p),(self.bbfm_m,self.bbfm_p)),mode="constant",constant_values=np.nan)
                     mystamp = copy(greenboard_pad[(row_id):(row_id+self.bbfm_m+self.bbfm_p),
                                                             (col_id):(col_id+self.bbfm_m+self.bbfm_p)])
@@ -683,23 +683,23 @@ class MatchedFilter(NoFM):
                     #print(section_ind)
                     plt.figure(1)
                     plt.subplot(1,3,1)
-                    blackboard1.shape = [input_img_shape[0] * input_img_shape[1]]
+                    blackboard1 = np.reshape(blackboard1, [input_img_shape[0] * input_img_shape[1]], copy=False)
                     blackboard1[section_ind] = mask
                     blackboard1[section_ind] = blackboard1[section_ind] + 1
-                    blackboard1.shape = [input_img_shape[0],input_img_shape[1]]
+                    blackboard1 = np.reshape(blackboard1, [input_img_shape[0],input_img_shape[1]], copy=False)
                     plt.imshow(blackboard1,interpolation="nearest")
                     plt.colorbar()
                     plt.subplot(1,3,2)
-                    blackboard2.shape = [input_img_shape[0] * input_img_shape[1]]
+                    blackboard2 = np.reshape(blackboard2, [input_img_shape[0] * input_img_shape[1]], copy=False)
                     # blackboard2[section_ind[0][where_fk]] = klipped[where_fk,N_KL_id]
                     blackboard2[section_ind[0]] = klipped#klipped_rm_pl
-                    blackboard2.shape = [input_img_shape[0],input_img_shape[1]]
+                    blackboard2 = np.reshape(blackboard2, [input_img_shape[0],input_img_shape[1]], copy=False)
                     plt.imshow(blackboard2,interpolation="nearest")
                     plt.colorbar()
                     plt.subplot(1,3,3)
-                    blackboard3.shape = [input_img_shape[0] * input_img_shape[1]]
+                    blackboard3 = np.reshape(blackboard3, [input_img_shape[0] * input_img_shape[1]], copy=False)
                     blackboard3[section_ind[0][where_fk]] = postklip_psf[N_KL_id,:]
-                    blackboard3.shape = [input_img_shape[0],input_img_shape[1]]
+                    blackboard3 = np.reshape(blackboard3, [input_img_shape[0],input_img_shape[1]], copy=False)
                     plt.imshow(blackboard3,interpolation="nearest")
                     plt.colorbar()
                     #print(klipped[where_fk,N_KL_id])
@@ -720,7 +720,7 @@ class MatchedFilter(NoFM):
         if self.save_raw_fmout:
             if self.save_bbfm or self.save_fm:
                 fmout1 = fmout[:4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx]
-                fmout1.shape = (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx)
+                fmout1 = np.reshape(fmout1, (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx), copy=False)
             else:
                 fmout1 = fmout
             hdu = pyfits.PrimaryHDU(fmout)
@@ -749,14 +749,14 @@ class MatchedFilter(NoFM):
 
         if self.save_bbfm:
             fmout1 = fmout[:4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx]
-            fmout1.shape = (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx)
+            fmout1 = np.reshape(fmout1, (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx), copy=False)
             fmout2 = fmout[4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx::]
-            fmout2.shape = (self.ny,self.nx,2*self.planet_radius,2*self.planet_radius)
+            fmout2 = np.reshape(fmout2, (self.ny,self.nx,2*self.planet_radius,2*self.planet_radius), copy=False)
         elif self.save_fm:
             fmout1 = fmout[:4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx]
-            fmout1.shape = (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx)
+            fmout1 = np.reshape(fmout1, (4,self.N_spectra,self.N_numbasis,self.N_frames,self.ny,self.nx), copy=False)
             fmout2 = fmout[4*self.N_spectra*self.N_numbasis*self.N_frames*self.ny*self.nx::]
-            fmout2.shape = (self.N_frames,self.ny,self.nx,2*self.planet_radius,2*self.planet_radius)
+            fmout2 = np.reshape(fmout2, (self.N_frames,self.ny,self.nx,2*self.planet_radius,2*self.planet_radius), copy=False)
         else:
             fmout1 = fmout
 
@@ -921,9 +921,9 @@ class MatchedFilter(NoFM):
                 self.psfs_func_list[wv_index](x_vec_stamp_centered,y_vec_stamp_centered).transpose()
 
         # write model img to output (segment is collapsed in x/y so need to reshape)
-        whiteboard.shape = [input_img_shape[0] * input_img_shape[1]]
+        whiteboard = np.reshape(whiteboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
         segment_with_model = copy(whiteboard[section_ind])
-        whiteboard.shape = [input_img_shape[0],input_img_shape[1]]
+        whiteboard = np.reshape(whiteboard, [input_img_shape[0],input_img_shape[1]], copy=False)
 
         # Define the masks for where the planet is and the background.
         if hasattr(self,"th0_grid") and hasattr(self,"r_grid"):
@@ -947,7 +947,7 @@ class MatchedFilter(NoFM):
         # whiteboard[(k-row_m):(k+row_p), (l-col_m):(l+col_p)][np.where(np.isnan(self.stamp_PSF_mask))]=2
         whiteboard[(k):(k+self.row_m+self.row_p), (l):(l+self.col_m+self.col_p)][np.where(np.isnan(self.stamp_PSF_mask))]=2
         whiteboard = np.ascontiguousarray(whiteboard[self.row_m:self.row_m+input_img_shape[0],self.col_m:self.col_m+input_img_shape[1]])
-        whiteboard.shape = [input_img_shape[0] * input_img_shape[1]]
+        whiteboard = np.reshape(whiteboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
         mask = whiteboard[section_ind]
 
         # create a canvas to place the new PSF in the sector on
@@ -955,11 +955,11 @@ class MatchedFilter(NoFM):
             print(pa,pa_fk)
             print(thstart,thend)
             whiteboard[section_ind] = whiteboard[section_ind] + 0.5
-            whiteboard.shape = (input_img_shape[0], input_img_shape[1])
+            whiteboard = np.reshape(whiteboard, (input_img_shape[0], input_img_shape[1]), copy=False)
             blackboard = np.zeros((ny,nx))
-            blackboard.shape = [input_img_shape[0] * input_img_shape[1]]
+            blackboard = np.reshape(blackboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
             blackboard[section_ind] = segment_with_model
-            blackboard.shape = [input_img_shape[0],input_img_shape[1]]
+            blackboard = np.reshape(blackboard, [input_img_shape[0],input_img_shape[1]], copy=False)
             plt.figure(1)
             plt.subplot(1,3,1)
             im = plt.imshow(whiteboard)
@@ -1060,18 +1060,18 @@ class MatchedFilter(NoFM):
                     self.psfs_func_list[wv_index[0]](x_vec_stamp_centered,y_vec_stamp_centered).transpose()
 
             # write model img to output (segment is collapsed in x/y so need to reshape)
-            whiteboard.shape = [input_img_shape[0] * input_img_shape[1]]
+            whiteboard = np.reshape(whiteboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
             segment_with_model = copy(whiteboard[section_ind])
-            whiteboard.shape = [input_img_shape[0],input_img_shape[1]]
+            whiteboard = np.reshape(whiteboard, [input_img_shape[0],input_img_shape[1]], copy=False)
 
             models.append(segment_with_model)
 
             # create a canvas to place the new PSF in the sector on
             if 0:
                 blackboard = np.zeros((ny,nx))
-                blackboard.shape = [input_img_shape[0] * input_img_shape[1]]
+                blackboard = np.reshape(blackboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
                 blackboard[section_ind] = segment_with_model
-                blackboard.shape = [input_img_shape[0],input_img_shape[1]]
+                blackboard = np.reshape(blackboard, [input_img_shape[0],input_img_shape[1]], copy=False)
                 plt.figure(1)
                 plt.subplot(1,2,1)
                 im = plt.imshow(whiteboard)

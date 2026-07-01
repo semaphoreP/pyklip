@@ -343,7 +343,7 @@ class Ifs(Data):
                     # print(x_list,y_list)
                     xcen_grid,ycen_grid = np.meshgrid(x_list,y_list)
                     cost_func  = np.zeros(xcen_grid.shape)
-                    cost_func.shape = [np.size(cost_func)]
+                    cost_func = np.reshape(cost_func, [np.size(cost_func)], copy=False)
 
                     import multiprocessing as mp
                     import itertools

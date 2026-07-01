@@ -277,9 +277,9 @@ class FMPlanetPSF(NoFM):
                 whiteboard[stamp_len, stamp_width] = \
                         self.field_dependent_correction(whiteboard[stamp_len, stamp_width], dx, dy)
             # write model img to output (segment is collapsed in x/y so need to reshape)
-            whiteboard.shape = [input_img_shape[0] * input_img_shape[1]]
+            whiteboard = np.reshape(whiteboard, [input_img_shape[0] * input_img_shape[1]], copy=False)
             segment_with_model = copy(whiteboard[section_ind])
-            whiteboard.shape = [input_img_shape[0],input_img_shape[1]]
+            whiteboard = np.reshape(whiteboard, [input_img_shape[0],input_img_shape[1]], copy=False)
 
            
 
