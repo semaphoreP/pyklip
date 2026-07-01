@@ -214,7 +214,33 @@ class Data(object):
         """
         return NotImplementedError("Subclass needs to implement this!")
     
+    def pad_input(self, pad_width):
+        """
+        Pads self.input with NaNs on all sides and updates self.centers accordingly.
 
+        Args:
+            pad_width (int): number of pixels to pad on each side of the input images
+        """
+        self.input = np.pad(self.input,
+                            ((0, 0), (pad_width, pad_width), (pad_width, pad_width)),
+                            mode='constant', constant_values=np.nan)
+        self.centers = self.centers + pad_width
+
+    def pad_output(self, pad_width):
+        """
+        Pads self.output with NaNs on all sides and updates self.output_centers accordingly.
+
+        Args:
+            pad_width (int): number of pixels to pad on each side of the output images
+        """
+        if self.output is None:
+            raise ValueError("output has not been set; run KLIP before padding output")
+        self.output = np.pad(self.output,
+                             ((0, 0), (0, 0), (0, 0), (pad_width, pad_width), (pad_width, pad_width)),
+                             mode='constant', constant_values=np.nan)
+        if self.output_centers is not None:
+            self.output_centers = self.output_centers + pad_width
+            
     def spectral_collapse(self, collapse_channels=1, align_frames=True, aligned_center=None, numthreads=None, additional_params=None):
             """
             Collapses the dataset spectrally, bining the data into the desired number of output wavelengths. 

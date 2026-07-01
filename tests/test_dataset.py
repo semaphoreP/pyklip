@@ -144,5 +144,35 @@ def test_spectral_collapse():
     assert np.abs(true_y - y_meas) < 0.4
 
 
+def test_pad_input():
+    data = np.ones((3, 10, 10))
+    centers = np.array([[5.0, 5.0]] * 3)
+    ds = Instrument.GenericData(data, centers)
+    ds.pad_input(2)
+    assert ds.input.shape == (3, 14, 14)
+    np.testing.assert_array_equal(ds.centers, centers + 2)
+    assert np.all(np.isnan(ds.input[:, :2, :])) and np.all(np.isnan(ds.input[:, :, :2]))
+    assert np.all(ds.input[:, 2:-2, 2:-2] == 1.0)
+
+
+def test_pad_output():
+    import pytest
+    data = np.ones((3, 10, 10))
+    centers = np.array([[5.0, 5.0]] * 3)
+    ds = Instrument.GenericData(data, centers)
+
+    # raises before output is set
+    with pytest.raises(ValueError, match="output has not been set"):
+        ds.pad_output(2)
+
+    ds.output = np.ones((1, 3, 1, 10, 10))
+    ds.output_centers = np.array([[5.0, 5.0]] * 3)
+    ds.pad_output(2)
+    assert ds.output.shape == (1, 3, 1, 14, 14)
+    np.testing.assert_array_equal(ds.output_centers, centers + 2)
+    assert np.all(np.isnan(ds.output[:, :, :, :2, :])) and np.all(np.isnan(ds.output[:, :, :, :, :2]))
+    assert np.all(ds.output[:, :, :, 2:-2, 2:-2] == 1.0)
+
+
 if __name__ == "__main__":
     test_gpi_throughput()
