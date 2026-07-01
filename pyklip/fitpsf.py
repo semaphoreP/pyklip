@@ -166,7 +166,7 @@ class FitPSF(object):
 
         # check that the stamp region fits within the image
         x_min_stamp = psf_xpos - stampsize // 2
-        x_max_stamp = psf_xpos + stampsize - 1 - stampsize // 2
+        x_max_stamp = psf_xpos + stampsize - 1 - stampsize // 2 # subtract center pix and those below center
         y_min_stamp = psf_ypos - stampsize // 2
         y_max_stamp = psf_ypos + stampsize - 1 - stampsize // 2
         if x_min_stamp < 0 or x_max_stamp >= fm_image.shape[1] or \
@@ -1122,13 +1122,6 @@ def quick_psf_fit(data, psf, x_guess, y_guess, fitboxsize):
     fit = FitPSF(fitboxsize, method='maxl')
 
     padding = int((np.min(psf.shape) - fitboxsize) // 2)
-    if padding < 1:
-        raise ValueError(
-            "PSF stamp (size {0}) is too small for fitboxsize={1}. "
-            "PSF must be at least fitboxsize + 2 = {2} pixels in its smallest "
-            "dimension to allow padding >= 1.".format(
-                np.min(psf.shape), fitboxsize, fitboxsize + 2)
-        )
     fit.generate_fm_stamp(psf, extract=False, padding=padding)
 
     fit.generate_data_stamp(data, [x_guess, y_guess], np.ones(data.shape))
