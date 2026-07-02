@@ -33,7 +33,7 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov photutils h5py
         pip install -r requirements.txt .
     - name: Test with pytest
       run: |
