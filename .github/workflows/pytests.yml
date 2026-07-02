@@ -37,6 +37,7 @@ jobs:
         pip install -r requirements.txt .
     - name: Test with pytest
       run: |
-        pytest --cov
+        coverage run --source ./pyklip -m pytest
+        coverage combine
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v2
