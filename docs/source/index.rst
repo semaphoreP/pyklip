@@ -18,9 +18,9 @@ pyKLIP is a python library for direct imaging of exoplanets and disks. It uses a
 function (PSF) subtraction. KLIP is based off of principal component analysis to model and subtract off the stellar PSF
 to look for faint exoplanets and disks and are around it.
 
-pyKLIP is open source, BSD-licened, and available at
-`this Bitbucket repo <https://bitbucket.org/pyKLIP/pyklip>`_. You can use the issue tracker there to submit issues and
-all contributions are welcome!
+pyKLIP is open source, BSD-licened, and available at `this Github repo <https://github.com/semaphoreP/pyklip>`_. pyKLIP was previously hosted on
+`Bitbucket <https://bitbucket.org/pyKLIP/pyklip>`_, but has moved after Bitbucket began deprecating its issue tracker. 
+Use the Github issue tracker to submit issues. All contributions are welcome!
 
 Features
 --------
@@ -37,7 +37,7 @@ Features
 Bugs/Feature Requests
 ------------------------
 
-Please use the `Issue Tracker <https://bitbucket.org/pyKLIP/pyklip/issues?status=new&status=open>`_ on Bitbucket to
+Please use the `Issue Tracker <https://github.com/semaphoreP/pyklip/issues>`_ on Github to
 submit bugs and new feature requests. Anyone is able to open issues.
 
 Attribution

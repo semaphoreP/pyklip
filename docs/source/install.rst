@@ -50,16 +50,16 @@ Install
 ^^^^^^^
 
 Due to the continually developing nature of pyKLIP, we recommend you use the current version of the code on
-`Bitbucket <https://bitbucket.org/pyKLIP/pyklip>`_ and keep it updated.
+`Github <https://github.com/semaphoreP/pyklip>`_ and keep it updated.
 To install the most up to date developer version, clone this repository if you haven't already::
 
-    $ git clone https://bitbucket.org/pyKLIP/pyklip.git
+    $ git clone https://github.com/semaphoreP/pyklip
 
 This clones the repoistory using HTTPS authentication. Once the repository is cloned onto your computer, ``cd`` into it and run the setup file::
 
-    $ python setup.py develop
+    $ pip install -e .
 
-If you use multiple versions of python, you will need to run ``setup.py`` with each version of python
+If you use multiple versions of python, you will need to run the pip install with each version of python
 (this should not apply to most people).
 
 Note on parallelized performance

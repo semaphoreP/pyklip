@@ -21,7 +21,7 @@ dimension is either wavelength or polarization depending on if you are working w
 Regardless, the data should have the satellite spot fluxes and locations measured and stored in the header
 as we will need these to register and calibrate the datacubes.
 If you don't have any GPI data, you can use the
-`reduced Beta Pic datacubes <https://bitbucket.org/pyKLIP/pyklip/src/main/tests/data/>`_
+`reduced Beta Pic datacubes <https://github.com/semaphoreP/pyklip/tree/main/tests/data>`_
 that are part of the pyklip repo. 
 
 Once you have reduced your data, we can identify and convert the GPI data from GPI specific information

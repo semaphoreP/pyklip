@@ -54,9 +54,9 @@ not fool-proof.
 Coveralls
 ---------
 Coveralls is the web service used to track our code coverage and report on our automated pipeline builds. Every time
-code is pushed to our Bitbucket repo and our tests are run, we first obtain our report using coverage, then we send the
+code is pushed to our Git repo and our tests are run, we first obtain our report using coverage, then we send the
 report to coveralls which in turn organizes our report with each build and displays the information for us on both the
-coverage website and a badge on the bitbucket repo.
+coverage website and a badge on the Github repo.
 
 For information on how to setup a coveralls hook to a repo, look `here <https://github.com/coveralls-clients/coveralls-python>`__.
-For our pipeline, we use Bitbucket Pipelines, so use the "Usage (another CI)" section.
+For our continuous integration pipeline, we use Github Actions, so use the "Usage (another CI)" section.

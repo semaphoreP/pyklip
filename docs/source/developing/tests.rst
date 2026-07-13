@@ -65,20 +65,19 @@ docstrings as well as Python style in general.
 
 Running Tests
 =============
-All of our tests are run automatically using ``pytest`` on a Docker image using a continuous integration build system (Bitbucket Pipelines). 
-This allows us to test pyKIP against a fresh and updated Python installation to ensure functionality is not broken and is comptable with the newest Python version.
+All of our tests are run automatically using ``pytest`` on a Docker image using a continuous integration build system (Github Actions). 
+This allows us to test pyKLIP against a fresh and updated Python installation to ensure functionality is not broken and is comptable with the newest Python version.
 If these terms seem unfamiliar, please refer to our :ref:`developing-label` page under the "Docker" section for more
 information on Docker.
 
 Here is a simple overview of the steps invovled in our automated testing framework:
 
-1. Bitbucket Pipelines reads our pipeline yml file to build the pipeline.
-2. Creates a docker image of the latest continuum anaconda3.
-3. Git clones the pyklip repository inside image.
-4. Installs all necessary packages.
-5. Runs tests using pytest on the test directory.
-6. Runs coverage analysis on our tests.
-7. Submits coverage report.
+1. Github Actions reads our workflow yml file to build the enviuronment.
+2. Creates a docker image of python in Ubuntu
+3. Installs all necessary packages.
+4. Runs tests using pytest on the test directory.
+5. Runs coverage analysis on our tests.
+6. Submits coverage report.
 
 You can also run tests locally. This is typically useful when you make changes and want to check that the changes does not break any functionality.
 It can also be useful if you write a test before writing the function code, and debug your code as you develop your function. That way, you will

@@ -28,7 +28,7 @@ The ``-t`` flag lets you name the image.
 For example, the docker file used for the pyklip image I set up above (under the "Using Docker" section) is made using a dockerfile with the following content: ::
 
         FROM continuumio/anaconda3:latest
-        RUN git clone https://bitbucket.org/pyKLIP/pyklip.git \
+        RUN git clone https://github.com/semaphoreP/pyklip.git \
          && pip install coveralls \
          && pip install emcee \
          && pip install corner \
