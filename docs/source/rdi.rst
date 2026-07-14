@@ -52,6 +52,25 @@ and regenerate the PSFLibrary quickly.
     psflib = rdi.PSFLibrary(psflib_imgs, aligned_center, psflib_filenames, correlation_matrix=corr_matrix)
 
 
+Adding a dataset to an existing PSF Library
+-------------------------------------------
+To extend an existing library, pass a dataset whose frames are already aligned
+to the library's ``aligned_center`` to
+:py:meth:`pyklip.rdi.PSFLibrary.add_new_dataset_to_library`. The method appends
+the dataset's frames and filenames and computes their correlations with every
+frame in the updated library. Set ``collapse=True`` to collapse the dataset's
+spectral cubes before they are added.
+
+.. code-block:: python
+
+    psflib.add_new_dataset_to_library(dataset, collapse=False)
+
+If you persist the correlation matrix, call ``save_correlation()`` again after
+adding the dataset, with ``overwrite=True`` when reusing the same file. Keep the
+images and filenames used to reconstruct the library in sync with the updated
+matrix.
+
+
 Running RDI on a dataset
 ------------------------
 Now let's assume you have a ``dataset``, a object that implements :py:class:`pyklip.instruments.Instrument.Data`. The input files
