@@ -121,6 +121,7 @@ Contents
 
    klip_gpi
    instruments/index
+   radon_centering
    contrast_curves
    rdi
 
