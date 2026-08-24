@@ -13,17 +13,16 @@ debug a fit that doesn't look right.
 How It Works
 ------------
 The core idea, from `Pueyo et al. (2015) <https://ui.adsabs.harvard.edu/abs/2015ApJ...803...31P/abstract>`_,
-is that a well-centered stellar PSF (or its surrounding speckle/diffraction halo) is
-point-symmetric: for any line through the true center, the flux on one side should mirror the
-flux on the other. :py:func:`~pyklip.instruments.utils.radonCenter.searchCenter` samples the
+is that a broadband image of the speckle/diffraction halo of the star's PSF points back to the 
+star's position: all diffraction features are radially extended so at the true star location, all
+speckles would point back towards the star. :py:func:`~pyklip.instruments.utils.radonCenter.searchCenter` samples the
 image along a set of lines at angles ``theta``, radiating out from a set of candidate center
-positions on a grid around your starting guess, and scores each candidate by how well the flux
-along those lines integrates to a symmetric ("Radon-transformed") profile. The candidate with the
-best symmetry score is the fitted center, refined to sub-pixel precision by interpolating the
-score surface. This makes it well-suited to saturated cores, coronagraphic images, and other
-cases where the core itself has no clean, fittable Gaussian-like peak -- as long as *something*
-roughly point-symmetric (a speckle halo, an occulted diffraction ring, etc.) is visible in the
-sampled region.
+positions on a grid around your starting guess, and scores each candidate by how much flux
+is traced by those lines (the true center maximizes the integrated flux along the lines). The 
+radon transform is a straightforward way to compute the flux along those lines. The algorithm further
+refines the center to sub-pixel precision by interpolating the 2-D score map. 
+This makes it well-suited to saturated cores, coronagraphic images, and other
+cases where the core itself has no clean, fittable Gaussian-like peak. 
 
 Basic Usage
 -----------
@@ -45,37 +44,24 @@ and stellar-halo masking built in and is a good reference for how to combine mas
 
 Key Parameters
 --------------
-* ``theta``: The angles (degrees) of the lines summed by the Radon transform. More angles give a
-  better-constrained, sharper symmetry score, at the cost of runtime. Two angles (e.g. the
-  default ``[45, 135]``) is the bare minimum and is prone to a degenerate, cross-shaped score
-  surface (see `Debugging with Visualization`_) -- for real data, prefer several angles spread
-  around the circle, or (if your data has them) angles aligned with diffraction spikes, which are
-  bright and easy to symmetry-match.
+* ``theta``: The angles (degrees) of the lines summed by the Radon transform. More angles allow you
+  to trace out more speckles of diffraction spikes. It is important to pick enough to trace out the
+  main PSF features you want to use. Two angles (e.g. the default ``[45, 135]``) is good for a PSF
+  with two main diffraction spikes. It can take some iteration to get the right angles for your PSF
+  (see `Debugging with Visualization`_).
 * ``m``, ``M``: Fractions that set where along each line the sampling happens. The sampled
   annulus is ``(m * eff_window, M * eff_window)`` on both sides of the candidate center, where
   ``eff_window`` is the *effective* window described below. Use ``m`` to exclude the saturated/
-  masked core and ``M`` to stay within the frame.
-* ``size_window``: Nominally "the radius of the sampling region." **Important gotcha:** internally,
-  ``searchCenter`` overwrites it as ``size_window = size_window - size_cost`` before building the
-  sampling annulus. So the true annulus radii are:
-
-  .. code-block:: python
-
-      effective_window = size_window - size_cost
-      inner_radius = m * effective_window
-      outer_radius = M * effective_window
-
-  not ``m * size_window`` / ``M * size_window`` as the docstring implies. If you don't account for
-  this you will silently sample a much smaller (or larger) annulus than intended -- e.g.
-  ``size_window=25, size_cost=15, m=0.2, M=0.8`` looks like annulus ``(5, 20)`` px but is actually
-  ``(2, 8)`` px. Always compute and sanity-check ``effective_window`` when choosing parameters.
-* ``size_cost``: The half-width (pixels) of the coarse search grid around your starting guess
-  ``(x_ctr_assign, y_ctr_assign)``. Also, per the gotcha above, it is subtracted from
-  ``size_window`` to get the effective sampling window. Keep it large enough to cover realistic
-  error in your starting guess, but remember it eats directly into your annulus radius.
-  ``RectBivariateSpline`` (used internally to interpolate the image) will raise if you ask it to
-  sample outside the pixel grid you passed in, so ``size_cost + outer_radius`` plus a small margin
-  must stay within the image/cutout bounds.
+  masked core and ``M`` to stay within the frame. Useful to ignore the central region (not pointed back to the center)
+  and far out (too faint to be useful; also there are interpolation errors if we sample beyond the image bounds). 
+  Somewhat degnerate with ``size_window`` below.
+* ``size_window``: Nominally "the radius of the image consdiered for the radon transform and approximately
+  the effective window. One caveat: the true effective window is ``effective_window = size_window - size_cost``.
+  If your ``size_cost`` is comparable in size to ``size_window``, this is important to consdier, but normally
+  ``size_window`` should be much larger than ``size_cost``.
+* ``size_cost``: The half-width (pixels) of the search grid around your starting guess
+  ``(x_ctr_assign, y_ctr_assign)``. If ``size_cost = 7``, it will search over a 15x15 grid centered
+  at ``(x_ctr_assign, y_ctr_assign)``.
 * ``smooth``: Half-width (pixels) over which the coarse cost function is boxcar-averaged before
   the sub-pixel refinement. A small amount (``smooth=1`` or ``2``) helps suppress single-pixel
   noise spikes in the score surface; too much washes out a real, sharp peak.
