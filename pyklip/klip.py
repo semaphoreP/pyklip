@@ -116,7 +116,7 @@ def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, retu
     # do the same for the reference PSFs
     # playing some tricks to vectorize the subtraction
     ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
-    ref_psfs_mean_sub[np.where(np.isnan(ref_psfs_mean_sub))] = 0
+    ref_psfs_mean_sub[np.isnan(ref_psfs_mean_sub)] = 0
 
     # calculate the covariance matrix for the reference PSFs
     # note that numpy.cov normalizes by p-1 to get the NxN covariance matrix
@@ -165,10 +165,10 @@ def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, retu
 
     # bad pixel mask
     # do it first for the image we're just doing computations on but don't care about the output
-    sci_nanpix = np.where(np.isnan(sci_mean_sub_rows))
+    sci_nanpix = np.isnan(sci_mean_sub_rows)
     sci_mean_sub_rows[sci_nanpix] = 0
     # now do it for the output image
-    sci_nanpix = np.where(np.isnan(sci_rows_selected))
+    sci_nanpix = np.isnan(sci_rows_selected)
     sci_rows_selected[sci_nanpix] = 0
 
     # do the KLIP equation, but now all the different k_KLIP simultaneously
@@ -181,14 +181,14 @@ def klip_math(sci, ref_psfs, numbasis, covar_psfs=None, return_basis=False, retu
     # if there are NaNs due to negative eigenvalues, make sure they don't mess up the matrix multiplicatoin
     # by setting the appropriate values to zero
     if check_nans:
-        needs_to_be_zeroed = np.where(lower_tri == 0)
+        needs_to_be_zeroed = lower_tri == 0
         inner_products[needs_to_be_zeroed] = 0
         # make a KLIP PSF for each amount of klip basis, but only for the amounts of klip basis we actually output
         kl_basis[:, neg_evals] = 0
         klip_psf = np.dot(inner_products[numbasis,:], kl_basis.T)
         # for KLIP PSFs that use so many KL modes that they become nans, we have to put nan's back in those
-        badbasis = np.where(numbasis >= np.min(neg_evals)) #use basis with negative eignevalues
-        klip_psf[badbasis[0], :] = np.nan
+        badbasis = numbasis >= np.min(neg_evals) #use basis with negative eignevalues
+        klip_psf[badbasis, :] = np.nan
     else:
         # make a KLIP PSF for each amount of klip basis, but only for the amounts of klip basis we actually output
         klip_psf = np.dot(inner_products[numbasis,:], kl_basis.T)
@@ -325,13 +325,13 @@ def nan_map_coordinates_2d(img, yp, xp, mc_kwargs=None):
     xp_ceil = np.clip(np.ceil(xp).astype(int), 0, img.shape[1]-1)
     yp_floor = np.clip(np.floor(yp).astype(int), 0, img.shape[0]-1)
     yp_ceil = np.clip(np.ceil(yp).astype(int), 0, img.shape[0]-1)
-    rotnans = np.where(np.isnan(img[yp_floor.ravel(), xp_floor.ravel()]) | 
-                       np.isnan(img[yp_floor.ravel(), xp_ceil.ravel()]) |
-                       np.isnan(img[yp_ceil.ravel(), xp_floor.ravel()]) |
-                       np.isnan(img[yp_ceil.ravel(), xp_ceil.ravel()]))
+    rotnans = (np.isnan(img[yp_floor.ravel(), xp_floor.ravel()]) |
+               np.isnan(img[yp_floor.ravel(), xp_ceil.ravel()]) |
+               np.isnan(img[yp_ceil.ravel(), xp_floor.ravel()]) |
+               np.isnan(img[yp_ceil.ravel(), xp_ceil.ravel()]))
 
     # resample image based on new coordinates, set nan values as median
-    nanpix = np.where(np.isnan(img))
+    nanpix = np.isnan(img)
     medval = np.nanmedian(img)
     img_copy = np.copy(img)
     img_copy[nanpix] = medval
@@ -420,7 +420,7 @@ def rotate(img, angle, center, new_center=None, flipx=False, astr_hdr=None):
         resampled_img: new 2D image
     """
     # skip this step if img is all nans
-    if np.size(np.where(~np.isnan(img))) == 0:
+    if np.isnan(img).all():
         return np.copy(img)
 
     #convert angle to radians

@@ -72,10 +72,10 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
 
     # remove means and nans
     sci_mean_sub = sci - np.nanmean(sci)
-    sci_nanpix = np.where(np.isnan(sci_mean_sub))
+    sci_nanpix = np.isnan(sci_mean_sub)
     sci_mean_sub[sci_nanpix] = 0
     refs_mean_sub = refs - np.nanmean(refs, axis=1)[:, None]
-    refs_mean_sub[np.where(np.isnan(refs_mean_sub))] = 0
+    refs_mean_sub[np.isnan(refs_mean_sub)] = 0
 
     # calculate the covariance matrix for the reference PSFs
     # note that numpy.cov normalizes by p-1 to get the NxN covariance matrix
@@ -150,7 +150,7 @@ def klip_math(sci, refs, numbasis, covar_psfs=None, model_sci=None, models_ref=N
 
 
     sub_img_rows_selected = sci_rows_selected - klip_reconstruction
-    sub_img_rows_selected[:, sci_nanpix[0]] = np.nan
+    sub_img_rows_selected[:, sci_nanpix] = np.nan
 
 
     if models_ref is not None:
@@ -192,22 +192,14 @@ def perturb_specIncluded(evals, evecs, original_KL, refs, models_ref, return_per
     N_pix = original_KL.shape[1]
 
     refs_mean_sub = refs - np.nanmean(refs, axis=1)[:, None]
-    refs_mean_sub[np.where(np.isnan(refs_mean_sub))] = 0
+    refs_mean_sub[np.isnan(refs_mean_sub)] = 0
 
     models_mean_sub = models_ref # - np.nanmean(models_ref, axis=1)[:,None] should this be the case?
-    models_mean_sub[np.where(np.isnan(models_mean_sub))] = 0
+    models_mean_sub[np.isnan(models_mean_sub)] = 0
 
     #print(evals.shape,evecs.shape,original_KL.shape,refs.shape,models_ref.shape)
 
-    evals_tiled = np.tile(evals,(max_basis,1))
-    np.fill_diagonal(evals_tiled,np.nan)
-    evals_sqrt = np.sqrt(evals)
-    evalse_inv_sqrt = 1./evals_sqrt
-    evals_ratio = (evalse_inv_sqrt[:,None]).dot(evals_sqrt[None,:])
-    beta_tmp = 1./(evals_tiled.transpose()- evals_tiled)
-    #print(evals)
-    beta_tmp[np.diag_indices(np.size(evals))] = -0.5/evals
-    beta = evals_ratio*beta_tmp
+    beta, _, evalse_inv_sqrt = _perturb_beta(evals, max_basis)
 
     C_partial = models_mean_sub.dot(refs_mean_sub.transpose())
     C = C_partial+C_partial.transpose()
@@ -220,6 +212,69 @@ def perturb_specIncluded(evals, evecs, original_KL, refs, models_ref, return_per
         return delta_KL, C
     else:
         return delta_KL
+
+
+def perturb_specIncluded_from_KL(evals, evecs, original_KL, models_ref=None, evecs_models=None):
+    """
+    Same as perturb_specIncluded() but computed from the KL modes instead of the reference images. Much quicker,
+    since the N x N perturbed covariance matrix over all p pixels is never formed.
+
+    Only valid if original_KL was built from the eigenvectors as in klip_math(), i.e.
+    original_KL = (refs_mean_sub.T . evecs / sqrt(evals)).T, so that refs_mean_sub.T . evecs = original_KL.T * sqrt(evals)
+    and alpha = evecs.T *dot* C *dot* evecs can be computed without the reference images.
+
+    Args:
+        evals: array of eigenvalues of the reference PSF covariance matrix (array of size numbasis)
+        evecs: corresponding eigenvectors (array of size [N, numbasis])
+        orignal_KL: unpertrubed KL modes from klip_math() (array of size [numbasis, p])
+        models_ref: N x p array of the N models corresponding to reference images.
+                    Each model should contain spectral informatoin
+        evecs_models: optional, precomputed evecs.T . models_ref (array of size [numbasis, p]) with the NaNs of
+                      models_ref set to 0. If given, models_ref is not used.
+
+    Returns:
+        delta_KL: perturbed KL modes. Shape is (numKL, pix)
+    """
+    max_basis = original_KL.shape[0]
+
+    if evecs_models is None:
+        models_mean_sub = models_ref # - np.nanmean(models_ref, axis=1)[:,None] should this be the case?
+        models_mean_sub[np.isnan(models_mean_sub)] = 0
+        evecs_models = (evecs.transpose()).dot(models_mean_sub)
+
+    beta, evals_sqrt, evalse_inv_sqrt = _perturb_beta(evals, max_basis)
+
+    # alpha = evecs.T . (models . refs.T + refs . models.T) . evecs, with refs.T . evecs = original_KL.T * sqrt(evals)
+    alpha_partial = evecs_models.dot(original_KL.transpose() * evals_sqrt[None,:])
+    alpha = alpha_partial + alpha_partial.transpose()
+
+    delta_KL = (beta*alpha).dot(original_KL) + evalse_inv_sqrt[:,None]*evecs_models
+
+    return delta_KL
+
+
+def _perturb_beta(evals, max_basis):
+    """
+    Eigenvalue-dependent coefficients shared by perturb_specIncluded() and perturb_specIncluded_from_KL()
+
+    Args:
+        evals: array of eigenvalues of the reference PSF covariance matrix (array of size numbasis)
+        max_basis: number of KL modes
+
+    Returns:
+        beta: (max_basis, max_basis) array of perturbation coefficients
+        evals_sqrt: sqrt(evals)
+        evalse_inv_sqrt: 1/sqrt(evals)
+    """
+    evals_tiled = np.tile(evals,(max_basis,1))
+    np.fill_diagonal(evals_tiled,np.nan)
+    evals_sqrt = np.sqrt(evals)
+    evalse_inv_sqrt = 1./evals_sqrt
+    evals_ratio = (evalse_inv_sqrt[:,None]).dot(evals_sqrt[None,:])
+    beta_tmp = 1./(evals_tiled.transpose()- evals_tiled)
+    beta_tmp[np.diag_indices(np.size(evals))] = -0.5/evals
+    beta = evals_ratio*beta_tmp
+    return beta, evals_sqrt, evalse_inv_sqrt
 
 
 def perturb_nospec_modelsBased(evals, evecs, original_KL, refs, models_ref_list):
@@ -396,7 +451,7 @@ def calculate_fm(delta_KL_nospec, original_KL, numbasis, sci, model_sci, inputfl
 
     # remove means and nans from science image
     sci_mean_sub = np.copy(sci - np.nanmean(sci))
-    sci_nanpix = np.where(np.isnan(sci_mean_sub))
+    sci_nanpix = np.isnan(sci_mean_sub)
     sci_mean_sub[sci_nanpix] = 0
     sci_mean_sub_rows = np.tile(sci_mean_sub, (max_basis,1))
     #sci_rows_selected = np.tile(sci_mean_sub, (np.size(numbasis),1))
@@ -405,7 +460,7 @@ def calculate_fm(delta_KL_nospec, original_KL, numbasis, sci, model_sci, inputfl
     # science PSF models, ready for FM
     # /!\ JB: If subtracting the mean. It should be done here. not in klip_math since we don't use model_sci there.
     model_sci_mean_sub = model_sci # should be subtracting off the mean?
-    model_nanpix = np.where(np.isnan(model_sci_mean_sub))
+    model_nanpix = np.isnan(model_sci_mean_sub)
     model_sci_mean_sub[model_nanpix] = 0
     model_sci_mean_sub_rows = np.tile(model_sci_mean_sub, (max_basis,1))
     # model_rows_selected = np.tile(sci_mean_sub, (np.size(numbasis),1)) # don't need this because of python behavior where I don't need to duplicate rows
@@ -529,7 +584,7 @@ def calculate_fm_singleNumbasis(delta_KL_nospec, original_KL, numbasis, sci, mod
 
     # remove means and nans from science image
     sci_mean_sub = sci - np.nanmean(sci)
-    sci_nanpix = np.where(np.isnan(sci_mean_sub))
+    sci_nanpix = np.isnan(sci_mean_sub)
     sci_mean_sub[sci_nanpix] = 0
     sci_mean_sub_rows = np.reshape(sci_mean_sub,(1,N_pix))
 
@@ -537,7 +592,7 @@ def calculate_fm_singleNumbasis(delta_KL_nospec, original_KL, numbasis, sci, mod
     # science PSF models, ready for FM
     # /!\ JB: If subtracting the mean. It should be done here. not in klip_math since we don't use model_sci there.
     model_sci_mean_sub = model_sci # should be subtracting off the mean?
-    model_nanpix = np.where(np.isnan(model_sci_mean_sub))
+    model_nanpix = np.isnan(model_sci_mean_sub)
     model_sci_mean_sub[model_nanpix] = 0
     model_sci_mean_sub_rows = np.reshape(model_sci_mean_sub,(1,N_pix))
 
@@ -958,27 +1013,27 @@ def _save_rotated_section(input_shape, sector, sector_ind, output_img, output_im
     xp_ceil = np.clip(np.ceil(xp).astype(int), 0, xp.shape[1]-1)[rot_sector_pix]
     yp_floor = np.clip(np.floor(yp).astype(int), 0, yp.shape[0]-1)[rot_sector_pix]
     yp_ceil = np.clip(np.ceil(yp).astype(int), 0, yp.shape[0]-1)[rot_sector_pix]
-    rotnans = np.where(np.isnan(blank_input[yp_floor.ravel(), xp_floor.ravel()]) | 
-                       np.isnan(blank_input[yp_floor.ravel(), xp_ceil.ravel()]) |
-                       np.isnan(blank_input[yp_ceil.ravel(), xp_floor.ravel()]) |
-                       np.isnan(blank_input[yp_ceil.ravel(), xp_ceil.ravel()]))
+    rotnans = (np.isnan(blank_input[yp_floor.ravel(), xp_floor.ravel()]) |
+               np.isnan(blank_input[yp_floor.ravel(), xp_ceil.ravel()]) |
+               np.isnan(blank_input[yp_ceil.ravel(), xp_floor.ravel()]) |
+               np.isnan(blank_input[yp_ceil.ravel(), xp_ceil.ravel()]))
 
     # resample image based on new coordinates, set nan values as median
-    nanpix = np.where(np.isnan(blank_input))
-    medval = np.median(blank_input[np.where(~np.isnan(blank_input))])
+    nanpix = np.isnan(blank_input)
+    medval = np.median(blank_input[~nanpix])
     input_copy = np.copy(blank_input)
     input_copy[nanpix] = medval
     rot_sector = ndimage.map_coordinates(input_copy, [yp[rot_sector_pix], xp[rot_sector_pix]], cval=np.nan)
 
     # mask nans
     rot_sector[rotnans] = np.nan
-    sector_validpix = np.where(~np.isnan(rot_sector))
+    sector_validpix = ~np.isnan(rot_sector)
 
     # need to define only where the non nan pixels are, so we can store those in the output image
     blank_output = np.zeros([dims[0], dims[1]]) * np.nan
     blank_output[rot_sector_pix] = rot_sector
     blank_output = np.reshape(blank_output, (dims[0], dims[1]), copy=False)
-    rot_sector_validpix_2d = np.where(~np.isnan(blank_output))
+    rot_sector_validpix_2d = ~np.isnan(blank_output)
 
     # save output sector. We need to reshape the array into 2d arrays to save it
     output_img = np.reshape(output_img, [outputs_shape[1], outputs_shape[2]], copy=False)
@@ -1110,10 +1165,6 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
             raise ValueError("Need to pass in correlatoin matrix and good selection array for PSF library")
 
 
-    # save all bad pixels
-    allnans = np.where(np.isnan(imgs))
-
-
     dims = imgs.shape
     if isinstance(annuli, int):
         # use first image to figure out how to divide the annuli
@@ -1121,10 +1172,10 @@ def klip_parallelized(imgs, centers, parangs, wvs, IWA, fm_class, mask_centers, 
         # need to make the next 10 lines or so much smarter
 
         x, y = np.meshgrid(np.arange(dims[2] * 1.0), np.arange(dims[1] * 1.0))
-        nanpix = np.where(np.isnan(imgs[0]))
+        nanpix = np.isnan(imgs[0])
         # need to define OWA if one wasn't passed. Try to use NaNs to figure out where it should be
         if OWA is None:
-            if np.size(nanpix) == 0:
+            if not nanpix.any():
                 OWA = np.sqrt(np.max((x - centers[0][0]) ** 2 + (y - centers[0][1]) ** 2))
             else:
                 # grab the NaN from the 1st percentile (this way we drop outliers)
@@ -1501,7 +1552,7 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         ref_psfs_mean_sub = ref_psfs - np.nanmean(ref_psfs, axis=1)[:, None]
-    ref_nanpix = np.where(np.isnan(ref_psfs_mean_sub))
+    ref_nanpix = np.isnan(ref_psfs_mean_sub)
     ref_psfs_mean_sub[ref_nanpix] = 0
 
     #calculate the covariance matrix for the reference PSFs
@@ -1527,7 +1578,7 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
         xmin = np.min(x_good)
         xmax = np.max(x_good)
         blank_img_crop = blank_img[ymin:ymax+1, xmin:xmax+1]
-        section_ind_smooth_crop = np.where(~np.isnan(blank_img_crop))
+        section_ind_smooth_crop = ~np.isnan(blank_img_crop)
         # now that we figured out only the region of interest for each image to smooth, let's smooth that region'
         ref_psfs_smoothed = []
         for aligned_img_2d in aligned_imgs_3d:
@@ -1545,14 +1596,14 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
             # 0 them out for now.
             if len(ref_psfs_smoothed) == 1:
                 corr_psfs = np.array([corr_psfs])
-            corr_psfs[np.where(np.isnan(corr_psfs))] = 0
+            corr_psfs[np.isnan(corr_psfs)] = 0
             
     else:
         # if we don't smooth, we can use the covariance matrix to calculate the correlation matrix. It'll be slightly faster
         #also calculate correlation matrix since we'll use that to select reference PSFs
         covar_diag_sqrt = np.sqrt(np.diag(covar_psfs))
         covar_diag_sqrt_inverse = np.zeros(covar_diag_sqrt.shape)
-        where_zeros = np.where(covar_diag_sqrt != 0)
+        where_zeros = covar_diag_sqrt != 0
         covar_diag_sqrt_inverse[where_zeros] = 1./covar_diag_sqrt[where_zeros]
         # any image where the diagonal is 0 is all NaNs and shouldn't be infinity
         # covar_diag_sqrt_inverse[np.where(covar_diag_sqrt == 0)] = 0
@@ -1675,10 +1726,10 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
         
         if include_rdi:
             # separate out the RDI ones
-            rdi_selected = np.where(is_rdi_psf[closest_matched])
+            rdi_selected = is_rdi_psf[closest_matched]
             rdi_closest_matched = psfindices[closest_matched[rdi_selected]]
             # remove the RDI ones from closest_matched to imitate non-RDI behavior
-            closest_matched = psfindices[closest_matched[np.where(~is_rdi_psf[closest_matched])]]
+            closest_matched = psfindices[closest_matched[~is_rdi_psf[closest_matched]]]
 
         # grab the new and smaller covariance matrix
         covar_files = covar_files[closest_matched.reshape(np.size(closest_matched), 1), closest_matched]
@@ -1712,11 +1763,11 @@ def _klip_section_multifile_perfile(img_num, sector_index, radstart, radend, phi
 
         #subctract the mean and remove the Nans from the RDI PSFs 
         rdi_psfs_selected_meansub = rdi_psfs_selected - np.nanmean(rdi_psfs_selected, axis=1)[:, None]
-        rdi_psfs_selected_meansub[np.where(np.isnan(rdi_psfs_selected_meansub))] = 0
+        rdi_psfs_selected_meansub[np.isnan(rdi_psfs_selected_meansub)] = 0
 
         #subctract the mean and remove the Nans from the other PSFs
         ref_psfs_selected_meansub = ref_psfs_selected - np.nanmean(ref_psfs_selected, axis=1)[:, None]
-        ref_psfs_selected_meansub[np.where(np.isnan(ref_psfs_selected_meansub))] = 0
+        ref_psfs_selected_meansub[np.isnan(ref_psfs_selected_meansub)] = 0
 
         # compute covariances. I could just grab these from ~20 lines above, but too lazy
         rdi_covar = np.cov(rdi_psfs_selected_meansub) # N_rdi_sel x N_rdi_sel

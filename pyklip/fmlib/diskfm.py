@@ -259,7 +259,7 @@ class DiskFM(NoFM):
                         self.aligned_center,
                         flipx=True,
                     )
-                    model_copy[np.where(np.isnan(model_copy))] = 0.0
+                    model_copy[np.isnan(model_copy)] = 0.0
                     self.model_disks[k * n_wv_per_file + j, :, :] = model_copy
 
         else:  # This is a 2D disk model and a wl = 1 case
@@ -270,7 +270,7 @@ class DiskFM(NoFM):
                                     pa_here,
                                     self.aligned_center,
                                     flipx=True)
-                model_copy[np.where(np.isnan(model_copy))] = 0.0
+                model_copy[np.isnan(model_copy)] = 0.0
                 self.model_disks[i] = model_copy
 
         self.model_disks = np.reshape(
@@ -369,8 +369,6 @@ class DiskFM(NoFM):
 
         if self.load_from_basis == False:
             sci = aligned_imgs[input_img_num, section_ind[0]]
-            refs = aligned_imgs[ref_psfs_indicies, :]
-            refs = refs[:, section_ind[0]]
         else:
             wlstrkey = 'wl' + str(int(self.wvs[input_img_num] * 1000)).zfill(4)
             sci = self.aligned_images_dict[wlstrkey][input_img_num,
@@ -382,38 +380,22 @@ class DiskFM(NoFM):
 
         # use the disk model stored
         model_sci = self.model_disks[input_img_num, section_ind[0]]
-        model_sci[np.where(np.isnan(model_sci))] = 0
-        model_ref = self.model_disks[ref_psfs_indicies, :]
-        model_ref = model_ref[:, section_ind[0]]
-        model_ref[np.where(np.isnan(model_ref))] = 0
+        model_sci[np.isnan(model_sci)] = 0
         if mode == 'RDI':
             #if only RDI we skip the deltaKL calculation since we do only over-subctraction
             delta_KL = klmodes * 0.
         else:
+            # project the reference models on the eigenvectors with one product over all frames
+            # (zero weight for non-reference frames) instead of copying the reference rows of
+            # model_disks for each section. update_disk already set the NaNs of model_disks to 0.
+            evecs_all = np.zeros((self.model_disks.shape[0], evecs.shape[1]))
+            np.add.at(evecs_all, ref_psfs_indicies, evecs)
+            evecs_models = evecs_all.T.dot(self.model_disks)[:, section_ind[0]]
             # using original Kl modes and reference models, compute the perturbed KL modes
-            # (spectra is already in models)
-            if self.load_from_basis == False:
-                delta_KL = fm.perturb_specIncluded(
-                    evals,
-                    evecs,
-                    klmodes,
-                    refs,
-                    model_ref,
-                    return_perturb_covar=False,
-                )
-            else:
-                # in the case of load_from_basis, the images are already saved in the
-                # DiskFM object, we can save a few tens of Mbytes (per cpu) by not 
-                # saving them and just passing them to the nex function
-                delta_KL = fm.perturb_specIncluded(
-                    evals,
-                    evecs,
-                    klmodes,
-                    self.aligned_images_dict[wlstrkey][ref_psfs_indicies, :]
-                    [:, section_ind[0]],
-                    model_ref,
-                    return_perturb_covar=False,
-                )
+            # (spectra is already in models). The KL modes come from fm.klip_math, so the
+            # reference images are not needed.
+            delta_KL = fm.perturb_specIncluded_from_KL(evals, evecs, klmodes,
+                                                       evecs_models=evecs_models)
 
         # calculate postklip_psf using delta_KL
         postklip_psf, _, _ = fm.calculate_fm(delta_KL,
@@ -696,56 +678,57 @@ class DiskFM(NoFM):
             file_extension = ""
         else:
             _, file_extension = path.splitext(self.basis_filename)
-        manager = mp.Manager()
 
+        # Plain dicts: fm_parallelized runs serially, and mp.Manager proxies would
+        # copy the full aligned image cube on every access.
         # Load in file
         if file_extension == ".pkl":
             pkl_file = open(self.basis_filename, "rb")
             if version_info.major == 3:
                 # Using encoding='latin1' is required for unpickling NumPy arrays
                 # and instances of datetime, date and time pickled by Python 2.
-                self.aligned_images_dict = manager.dict(
+                self.aligned_images_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
 
-                self.klmodes_dict = manager.dict(
+                self.klmodes_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.evecs_dict = manager.dict(
+                self.evecs_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.evals_dict = manager.dict(
+                self.evals_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.ref_psfs_indicies_dict = manager.dict(
+                self.ref_psfs_indicies_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.section_ind_dict = manager.dict(
+                self.section_ind_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
 
-                self.radstart_dict = manager.dict(
+                self.radstart_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.radend_dict = manager.dict(
+                self.radend_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.phistart_dict = manager.dict(
+                self.phistart_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.phiend_dict = manager.dict(
+                self.phiend_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
-                self.input_img_num_dict = manager.dict(
+                self.input_img_num_dict = dict(
                     pickle.load(pkl_file, encoding="latin1"))
 
                 self.klparam_dict = pickle.load(pkl_file, encoding="latin1")
 
             else:
-                self.aligned_images_dict = manager.dict(pickle.load(pkl_file))
+                self.aligned_images_dict = dict(pickle.load(pkl_file))
 
-                self.klmodes_dict = manager.dict(pickle.load(pkl_file))
-                self.evecs_dict = manager.dict(pickle.load(pkl_file))
-                self.evals_dict = manager.dict(pickle.load(pkl_file))
-                self.ref_psfs_indicies_dict = manager.dict(
+                self.klmodes_dict = dict(pickle.load(pkl_file))
+                self.evecs_dict = dict(pickle.load(pkl_file))
+                self.evals_dict = dict(pickle.load(pkl_file))
+                self.ref_psfs_indicies_dict = dict(
                     pickle.load(pkl_file))
-                self.section_ind_dict = manager.dict(pickle.load(pkl_file))
+                self.section_ind_dict = dict(pickle.load(pkl_file))
 
-                self.radstart_dict = manager.dict(pickle.load(pkl_file))
-                self.radend_dict = manager.dict(pickle.load(pkl_file))
-                self.phistart_dict = manager.dict(pickle.load(pkl_file))
-                self.phiend_dict = manager.dict(pickle.load(pkl_file))
-                self.input_img_num_dict = manager.dict(pickle.load(pkl_file))
+                self.radstart_dict = dict(pickle.load(pkl_file))
+                self.radend_dict = dict(pickle.load(pkl_file))
+                self.phistart_dict = dict(pickle.load(pkl_file))
+                self.phiend_dict = dict(pickle.load(pkl_file))
+                self.input_img_num_dict = dict(pickle.load(pkl_file))
 
                 self.klparam_dict = pickle.load(pkl_file)
 
@@ -754,21 +737,21 @@ class DiskFM(NoFM):
             if file_extension == ".h5":
                 kl_basis_file = _load_dict_from_hdf5(self.basis_filename)
 
-        self.aligned_images_dict = manager.dict(
+        self.aligned_images_dict = dict(
             kl_basis_file['aligned_images_dict'])
 
-        self.klmodes_dict = manager.dict(kl_basis_file['klmodes_dict'])
-        self.evecs_dict = manager.dict(kl_basis_file['evecs_dict'])
-        self.evals_dict = manager.dict(kl_basis_file['evals_dict'])
-        self.ref_psfs_indicies_dict = manager.dict(
+        self.klmodes_dict = dict(kl_basis_file['klmodes_dict'])
+        self.evecs_dict = dict(kl_basis_file['evecs_dict'])
+        self.evals_dict = dict(kl_basis_file['evals_dict'])
+        self.ref_psfs_indicies_dict = dict(
             kl_basis_file['ref_psfs_indicies_dict'])
-        self.section_ind_dict = manager.dict(kl_basis_file['section_ind_dict'])
+        self.section_ind_dict = dict(kl_basis_file['section_ind_dict'])
 
-        self.radstart_dict = manager.dict(kl_basis_file['radstart_dict'])
-        self.radend_dict = manager.dict(kl_basis_file['radend_dict'])
-        self.phistart_dict = manager.dict(kl_basis_file['phistart_dict'])
-        self.phiend_dict = manager.dict(kl_basis_file['phiend_dict'])
-        self.input_img_num_dict = manager.dict(
+        self.radstart_dict = dict(kl_basis_file['radstart_dict'])
+        self.radend_dict = dict(kl_basis_file['radend_dict'])
+        self.phistart_dict = dict(kl_basis_file['phistart_dict'])
+        self.phiend_dict = dict(kl_basis_file['phiend_dict'])
+        self.input_img_num_dict = dict(
             kl_basis_file['input_img_num_dict'])
 
         self.klparam_dict = kl_basis_file['klparam_dict']
