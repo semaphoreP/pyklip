@@ -3,6 +3,7 @@ import sys
 import glob
 import time
 import numpy as np
+import pytest
 
 if sys.version_info < (3, 3):
     from mock import patch
@@ -36,13 +37,7 @@ def test_process_vampmires_data():
 
         assert data["cube"].shape == (4, 756, 756)
         assert data["centers"].shape == (4, 2)
-        assert np.all(
-            (
-                data["centers"][0] == data["centers"][1],
-                data["centers"][1] == data["centers"][2],
-                data["centers"][2] == data["centers"][3],
-            )
-        )
+        np.testing.assert_allclose(data["centers"], np.tile([377.5, 377.5], (4, 1)))
         assert data["PAs"].shape == (4,)
         assert data["wvs"].shape == (4,)
         np.testing.assert_allclose(data["wvs"], (0.614, 0.670, 0.721, 0.761), atol=5e-4)
@@ -158,6 +153,14 @@ def test_vampires_klip():
     output_files = glob.glob(outputdir + "test_adisdi*")
     assert len(output_files) == 4
 
+
+
+def test_calibrate_output_warns_and_passes_through():
+    dataset = VAMPIRES.VAMPIRESData()
+    img = np.random.default_rng(0).normal(size=(4, 10, 10))
+    with pytest.warns(UserWarning, match="vampires-dpp"):
+        out = dataset.calibrate_output(img, spectral=True)
+    np.testing.assert_array_equal(out, img)
 
 
 if __name__ == "__main__":
