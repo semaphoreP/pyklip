@@ -1,3 +1,4 @@
 p1640/tutorial_Occulted_2001-01-01_001.fits filter=lfs diff=lfs merge=lfs -text
 p1640/tutorial_Occulted_2001-01-01_002.fits filter=lfs diff=lfs merge=lfs -text
 p1640/tutorial_Occulted_2001-01-01_003.fits filter=lfs diff=lfs merge=lfs -text
+vampires/*.fits filter=lfs diff=lfs merge=lfs -text
