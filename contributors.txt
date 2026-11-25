@@ -51,3 +51,5 @@ Jens Kammerer: Helped build the JWST interface
 William Balmer: Helped develop the JWST interface
 
 Giovanni Strampelli: Helped develop the JWST interface
+
+Miles Lucas: Built the VAMPIRES interface
