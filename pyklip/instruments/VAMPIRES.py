@@ -160,7 +160,7 @@ class VAMPIRESData(Data):
             wcss.append(vamp_data["wcs"])
             prim_hdrs.append(vamp_data["prim_hdr"])
             filenums.append([index for _ in range(vamp_data["centers"].shape[0])])
-            filenames.append([index for _ in range(vamp_data["centers"].shape[0])])
+            filenames.append([filepath for _ in range(vamp_data["centers"].shape[0])])
 
         self.input = np.concatenate(data)
         self.centers = np.concatenate(centers)
@@ -215,7 +215,7 @@ class VAMPIRESData(Data):
         fakePlparams: fake planet params
         """
         # need to fix WCS
-        header = self.prim_hdrs[0]
+        header = self.prim_hdrs[0].copy()
         if self.output_wcs is not None:
             header.update(self.output_wcs[0].to_header())
             # Note: if PC matrix is identity the to_header() function doesn't
