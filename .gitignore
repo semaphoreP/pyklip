@@ -18,6 +18,7 @@ tests/data/p1640/output/*
 tests/data/p1640/shared_spot_folder/*
 tests/diskfm_dir/*
 examples/*.png
+tests/data/vampires/output/*
 
 
 #ignore auxiliary directories
