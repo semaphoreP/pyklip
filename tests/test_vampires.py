@@ -35,9 +35,9 @@ def test_process_vampmires_data():
         for key in ("cube", "centers", "PAs", "wvs", "wcs", "prim_hdr"):
             assert key in data
 
-        assert data["cube"].shape == (4, 756, 756)
+        assert data["cube"].shape == (4, 536, 536)
         assert data["centers"].shape == (4, 2)
-        np.testing.assert_allclose(data["centers"], np.tile([377.5, 377.5], (4, 1)))
+        np.testing.assert_allclose(data["centers"], np.tile([267.5, 267.5], (4, 1)))
         assert data["PAs"].shape == (4,)
         assert data["wvs"].shape == (4,)
         np.testing.assert_allclose(data["wvs"], (0.614, 0.670, 0.721, 0.761), atol=5e-4)
@@ -49,7 +49,7 @@ def test_vampiresdata_construction():
     # test construction
     dataset = VAMPIRES.VAMPIRESData(filelist)
 
-    assert dataset.input.shape == (12, 756, 756)
+    assert dataset.input.shape == (12, 536, 536)
     assert dataset.wvs.shape == (12,)
     assert dataset.centers.shape == (12, 2)
     assert dataset.PAs.shape == (12,)
@@ -85,7 +85,7 @@ def test_vampires_klip():
 
     # create a mocked klip parallelized
     # mock_klip_parallelized.return_value = (
-    #     np.zeros((3, 4, 756, 756)),
+    #     np.zeros((3, 4, 536, 536)),
     #     np.array([140, 140]),
     #     np.array([1.0]),
     # )
@@ -110,7 +110,7 @@ def test_vampires_klip():
     ## Run KLIP
     # common keywords
     kwargs = dict(
-        dataset,
+        dataset=dataset,
         outputdir=outputdir,
         annuli=5,
         subsections=4,

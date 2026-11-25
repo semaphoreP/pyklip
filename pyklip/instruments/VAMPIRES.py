@@ -279,8 +279,13 @@ class VAMPIRESData(Data):
         hdulist.writeto(filepath, overwrite=True)
         hdulist.close()
 
-    # def calibrate_output(self, img, spectral=False):
-    #     # first off, if we're not in
+    def calibrate_output(self, img, spectral=False):
+        warnings.warn(
+            "VAMPIRESData does not perform flux calibration; flux calibration "
+            "should be done with vampires-dpp. Returning data unchanged.",
+            stacklevel=2,
+        )
+        return img
 
 
 def _vampires_process_file(filepath):
