@@ -27,7 +27,7 @@ def load_vampires_test_data():
     return filelist
 
 
-def test_process_vampmires_data():
+def test_process_vampires_data():
     filelist = load_vampires_test_data()
     for filepath in filelist:
         data = VAMPIRES._vampires_process_file(filepath)
@@ -72,24 +72,6 @@ def test_vampiresdata_construction():
 
 # sets up a patch object to mock.
 def test_vampires_klip():
-    """
-    # Tests P1640 support by running through the P1640 tutorial without the interactive parts.
-
-    # Follows the P1640 tutorial in docs and runs a test using the tutorial as a guideline. Goes through downloading the
-    # sample tarball, extracting the datacubes, fitting the grid spots, running KLIP on the datacubes, and outputting
-    # the files. The test checks that there are the correct number of files in each step outputted in the correct
-    # directories.
-    # The test also ignores all interactive modes such as vetting the cubes and grid spots.
-
-    """
-
-    # create a mocked klip parallelized
-    # mock_klip_parallelized.return_value = (
-    #     np.zeros((3, 4, 536, 536)),
-    #     np.array([140, 140]),
-    #     np.array([1.0]),
-    # )
-
     from pyklip import parallelized
 
     directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -164,6 +146,6 @@ def test_calibrate_output_warns_and_passes_through():
 
 
 if __name__ == "__main__":
-    test_process_vampmires_data()
+    test_process_vampires_data()
     test_vampiresdata_construction()
     test_vampires_klip()
